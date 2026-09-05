@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Hand Geometry Tetris</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+JP:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: #0b0f19;
+            color: #e2e8f0;
+            user-select: none;
+            overflow-x: hidden;
+        }
+
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Neon effects */
+        .neon-border {
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5), inset 0 0 10px rgba(59, 130, 246, 0.3);
+            border: 2px solid #3b82f6;
+        }
+
+        .neon-text-blue {
+            text-shadow: 0 0 8px rgba(59, 130, 246, 0.8), 0 0 20px rgba(59, 130, 246, 0.5);
+        }
+
+        .neon-text-pink {
+            text-shadow: 0 0 8px rgba(236, 72, 153, 0.8), 0 0 20px rgba(236, 72, 153, 0.5);
+        }
+
+        /* Countdown Overlay Animation */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+
+        .countdown-active {
+            animation: pulse-ring 0.8s infinite ease-in-out;
+        }
+
+        /* Flash effect for camera capture */
+        .flash {
+            animation: flash-animation 0.3s ease-out;
+        }
+
+        @keyframes flash-animation {
+            0% { background-color: rgba(255, 255, 255, 0.9); }
+            100% { background-color: transparent; }
+        }
+
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111827;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-between p-2 md:p-4">
+
+    <!-- Header -->
+    <header class="w-full max-w-5xl flex justify-between items-center mb-3 px-2">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-shapes text-3xl text-cyan-400 animate-pulse"></i>
+            <div>
+                <h1 class="text-2xl md:text-3xl font-black font-orbitron tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-indigo-400 to-pink-500">
+                    AI HAND TETRIS
+                </h1>
+                <p class="text-xs text-slate-400">手の形（ジオメトリ）で落ちてくるブロックを決定！</p>
+            </div>
+        </div>
+        
+        <div class="flex gap-2">
+            <button id="btnSound" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all border border-slate-700">
+                <i class="fa-solid fa-volume-high text-lg" id="iconSound"></i>
+            </button>
+            <button id="btnHelp" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all border border-slate-700">
+                <i class="fa-solid fa-circle-question text-lg"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-4 items-start flex-1">
+        
+        <!-- Left Column: Camera & AI Status (4 cols) -->
+        <section class="lg:col-span-4 flex flex-col gap-3 h-full">
+            <!-- Camera View Box -->
+            <div class="relative bg-slate-900/90 rounded-2xl p-3 border border-slate-800 shadow-xl flex flex-col items-center">
+                <div class="w-full flex justify-between items-center mb-2 px-1">
+                    <span class="text-xs font-bold font-orbitron text-cyan-400 flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span> CAMERA INPUT
+                    </span>
+                    <span id="camStatus" class="text-xs text-slate-400">準備中...</span>
+                </div>
+
+                <!-- Video Feed & Flash Container -->
+                <div id="cameraContainer" class="relative w-full aspect-video md:aspect-square bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center">
+                    <video id="webcam" autoplay playsinline muted class="w-full h-full object-cover transform -scale-x-100"></video>
+                    <canvas id="snapshotCanvas" class="hidden"></canvas>
+                    
+                    <!-- Flash effect div -->
+                    <div id="flashOverlay" class="absolute inset-0 pointer-events-none"></div>
+
+                    <!-- Countdown Overlay -->
+                    <div id="countdownOverlay" class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm flex flex-col items-center justify-center transition-all duration-300 opacity-0 pointer-events-none">
+                        <span id="countdownText" class="text-7xl font-black font-orbitron text-pink-500 countdown-active drop-shadow-[0_0_20px_rgba(236,72,153,0.8)]">
+                            3
+                        </span>
+                        <span class="text-xs font-bold text-slate-200 mt-2 bg-slate-900/80 px-3 py-1 rounded-full border border-pink-500/40">
+                            カウント0で撮影！手の形をキープして！
+                        </span>
+                    </div>
+
+                    <!-- Camera Placeholder/Permission Screen -->
+                    <div id="cameraPrompt" class="absolute inset-0 bg-slate-900/95 flex flex-col items-center justify-center p-4 text-center z-10">
+                        <i class="fa-solid fa-camera text-4xl text-cyan-400 mb-3"></i>
+                        <p class="text-sm font-bold text-slate-200 mb-1">カメラの許可が必要です</p>
+                        <p class="text-xs text-slate-400 mb-4">インカメラの映像からAIが手の形（ジオメトリ）を厳しく判定します</p>
+                        <button id="btnStartCamera" class="px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-sm rounded-xl shadow-lg transition-all transform active:scale-95">
+                            カメラを起動する
+                        </button>
+                    </div>
+                </div>
+
+                <!-- AI Analysis Status Card -->
+                <div class="w-full mt-3 bg-slate-950/60 rounded-xl p-3 border border-slate-800/80">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold text-slate-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-hand-fist text-purple-400"></i> AI判定ブロック
+                        </span>
+                        <span id="aiLoader" class="hidden text-xs text-purple-400 font-mono animate-pulse flex items-center gap-1">
+                            <i class="fa-solid fa-spinner fa-spin"></i> AIが手の形を解析中...
+                        </span>
+                    </div>
+                    
+                    <!-- Snapshot Thumbnail & Reason -->
+                    <div class="flex gap-2.5 items-center bg-slate-900/80 p-2 rounded-lg border border-slate-800">
+                        <div class="relative w-14 h-14 bg-slate-950 rounded-lg overflow-hidden border border-slate-700 flex-shrink-0 flex items-center justify-center">
+                            <img id="snapshotPreview" class="w-full h-full object-cover hidden" alt="Captured pose" />
+                            <i id="snapshotPlaceholder" class="fa-solid fa-hand text-slate-600 text-lg"></i>
+                        </div>
+                        <div class="flex-1 min-h-[36px] flex flex-col justify-center">
+                            <div id="spawnedBlockBadge" class="text-xs font-bold font-orbitron text-cyan-400 mb-0.5">WAITING SHAPE...</div>
+                            <p id="aiReason" class="text-[11px] text-slate-300 italic leading-tight">
+                                手の形（ジオメトリ）を幾何学的に測定して次の落ちてくるブロックを決定します。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Center Column: Tetris Game Canvas & Score Board (5 cols) -->
+        <section class="lg:col-span-5 flex flex-col items-center gap-3">
+            <!-- Score Header Cards -->
+            <div class="w-full grid grid-cols-3 gap-2">
+                <div class="bg-slate-900/90 rounded-xl p-2.5 border border-slate-800 text-center shadow-lg">
+                    <div class="text-[10px] font-bold text-slate-400 font-orbitron">SCORE</div>
+                    <div id="scoreText" class="text-lg font-black font-orbitron text-cyan-400">0</div>
+                </div>
+                <div class="bg-slate-900/90 rounded-xl p-2.5 border border-slate-800 text-center shadow-lg">
+                    <div class="text-[10px] font-bold text-slate-400 font-orbitron">LINES</div>
+                    <div id="linesText" class="text-lg font-black font-orbitron text-pink-400">0</div>
+                </div>
+                <div class="bg-slate-900/90 rounded-xl p-2.5 border border-slate-800 text-center shadow-lg">
+                    <div class="text-[10px] font-bold text-slate-400 font-orbitron">LEVEL</div>
+                    <div id="levelText" class="text-lg font-black font-orbitron text-yellow-400">1</div>
+                </div>
+            </div>
+
+            <!-- Game Board Container -->
+            <div class="relative bg-slate-950 p-2 rounded-2xl border-2 border-slate-800 shadow-2xl neon-border flex justify-center items-center overflow-hidden">
+                <canvas id="tetrisCanvas" width="240" height="480" class="bg-slate-950 rounded-lg"></canvas>
+
+                <!-- Start / Game Over Overlay -->
+                <div id="gameOverlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20">
+                    <h2 id="overlayTitle" class="text-2xl font-black font-orbitron text-cyan-400 mb-2 neon-text-blue">
+                        AI HAND TETRIS
+                    </h2>
+                    <p id="overlaySub" class="text-xs text-slate-300 mb-6 leading-relaxed">
+                        カメラの前で「手の形」を作ってブロックを操ろう！<br>
+                        スタートボタンを押すとゲームが始まります。
+                    </p>
+                    <button id="btnStartGame" class="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white font-bold text-sm rounded-xl shadow-lg transition-all transform hover:scale-105 active:scale-95 border border-pink-400/30 font-orbitron">
+                        START GAME
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Column: Controls Info & Pose Guide (3 cols) -->
+        <section class="lg:col-span-3 flex flex-col gap-3 h-full">
+            
+            <!-- Pose Guide Card -->
+            <div class="bg-slate-900/90 rounded-2xl p-3.5 border border-slate-800 shadow-xl">
+                <h3 class="text-xs font-bold font-orbitron text-pink-400 mb-2.5 flex items-center gap-1.5">
+                    <i class="fa-solid fa-hand text-pink-400"></i> 手の形のコツ
+                </h3>
+                <div class="space-y-1.5 text-[11px] text-slate-300">
+                    <div class="flex items-center justify-between bg-slate-950/60 p-1.5 rounded border border-slate-800/80">
+                        <span class="text-cyan-400 font-bold">I 型</span>
+                        <span class="text-slate-400">手を平らに閉じて、1本の長い長方形を作る</span>
+                    </div>
+                    <div class="flex items-center justify-between bg-slate-950/60 p-1.5 rounded border border-slate-800/80">
+                        <span class="text-purple-400 font-bold">T 型</span>
+                        <span class="text-slate-400">片方の手のひらを、もう片方の手首に直角に当てる（T字）</span>
+                    </div>
+                    <div class="flex items-center justify-between bg-slate-950/60 p-1.5 rounded border border-slate-800/80">
+                        <span class="text-yellow-400 font-bold">O 型</span>
+                        <span class="text-slate-400">手を握って「グー」を作る（四角い塊）</span>
+                    </div>
+                    <div class="flex items-center justify-between bg-slate-950/60 p-1.5 rounded border border-slate-800/80">
+                        <span class="text-orange-400 font-bold">L / J 型</span>
+                        <span class="text-slate-400">親指と人差し指、または他の指でL字を形成する</span>
+                    </div>
+                    <div class="flex items-center justify-between bg-slate-950/60 p-1.5 rounded border border-slate-800/80">
+                        <span class="text-emerald-400 font-bold">S / Z 型</span>
+                        <span class="text-slate-400">手のひらをクランク状に曲げる（ジグザグ）</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Keyboard Instructions Box -->
+            <div class="bg-slate-900/90 rounded-2xl p-3.5 border border-slate-800 shadow-xl">
+                <h3 class="text-xs font-bold font-orbitron text-slate-300 mb-2.5 flex items-center gap-1.5">
+                    <i class="fa-solid fa-keyboard text-cyan-400"></i> CONTROLS
+                </h3>
+                <div class="grid grid-cols-2 gap-2 text-[11px] text-slate-300">
+                    <div class="bg-slate-950/70 p-2 rounded-lg border border-slate-800">
+                        <div class="font-bold text-slate-400">移動</div>
+                        <div class="text-cyan-300 font-mono">← / →</div>
+                    </div>
+                    <div class="bg-slate-950/70 p-2 rounded-lg border border-slate-800">
+                        <div class="font-bold text-slate-400">ソフトドロップ</div>
+                        <div class="text-cyan-300 font-mono">↓ キー</div>
+                    </div>
+                    <div class="bg-slate-950/70 p-2 rounded-lg border border-slate-800">
+                        <div class="font-bold text-slate-400">ハードドロップ</div>
+                        <div class="text-cyan-300 font-mono">↑ キー</div>
+                    </div>
+                    <div class="bg-slate-950/70 p-2 rounded-lg border border-slate-800">
+                        <div class="font-bold text-slate-400">左回転 / 右回転</div>
+                        <div class="text-pink-400 font-mono">Z / C キー</div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Mobile On-Screen Controls -->
+    <div class="w-full max-w-md my-2 lg:hidden px-2">
+        <div class="bg-slate-900/90 rounded-2xl p-3 border border-slate-800 shadow-lg flex flex-col gap-2">
+            <!-- Top row: Rotation & Hard Drop -->
+            <div class="grid grid-cols-4 gap-2">
+                <button id="btnRotL" class="py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-pink-400 font-bold rounded-xl active:bg-pink-600 active:text-white transition-all flex flex-col items-center justify-center">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    <span class="text-[10px] mt-0.5 font-mono">Z</span>
+                </button>
+                <button id="btnRotR" class="py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-pink-400 font-bold rounded-xl active:bg-pink-600 active:text-white transition-all flex flex-col items-center justify-center">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span class="text-[10px] mt-0.5 font-mono">C</span>
+                </button>
+                <button id="btnHardDrop" class="col-span-2 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-yellow-400 font-bold rounded-xl active:bg-yellow-600 active:text-white transition-all flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-angles-down"></i>
+                    <span class="text-xs">DROP (↑)</span>
+                </button>
+            </div>
+            <!-- Bottom row: Left, Down, Right -->
+            <div class="grid grid-cols-3 gap-2">
+                <button id="btnLeft" class="py-3.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-400 font-bold rounded-xl active:bg-cyan-600 active:text-white transition-all flex justify-center items-center">
+                    <i class="fa-solid fa-arrow-left text-lg"></i>
+                </button>
+                <button id="btnDown" class="py-3.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-400 font-bold rounded-xl active:bg-cyan-600 active:text-white transition-all flex justify-center items-center">
+                    <i class="fa-solid fa-arrow-down text-lg"></i>
+                </button>
+                <button id="btnRight" class="py-3.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-400 font-bold rounded-xl active:bg-cyan-600 active:text-white transition-all flex justify-center items-center">
+                    <i class="fa-solid fa-arrow-right text-lg"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instructions Modal -->
+    <div id="helpModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 max-w-md w-full shadow-2xl relative">
+            <button id="btnCloseHelp" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <h3 class="text-lg font-bold font-orbitron text-cyan-400 mb-3 flex items-center gap-2">
+                <i class="fa-solid fa-circle-info"></i> ゲームルール & 遊び方
+            </h3>
+            <div class="text-xs text-slate-300 space-y-2.5 leading-relaxed">
+                <p><strong class="text-white">1. カメラとAIの連動:</strong><br>
+                ゲーム開始時、およびブロックが落下してボードに固定されるたびに<span class="text-pink-400 font-bold">3秒間の撮影カウントダウン</span>が始まります。</p>
+                
+                <p><strong class="text-white">2. 手の形でブロック決定:</strong><br>
+                カメラの前で「手の形」を作ってください。AIが「I, J, L, O, S, T, Z」のどのテトリスブロックに似ているかを幾何学的に判定し、<span class="text-cyan-400 font-bold">次の落下ブロック(NEXT)</span>としてセットします。</p>
+
+                <p><strong class="text-white">3. 操作方法:</strong><br>
+                • キーボード: 矢印キー（左右移動・落下）/ <span class="font-mono text-pink-300">Zキー</span>(左回転) / <span class="font-mono text-pink-300">Cキー</span>(右回転)<br>
+                • スマホ: 画面下のコントローラーボタン</p>
+
+                <p><strong class="text-white">4. 手の形のコツ:</strong><br>
+                • 平らに閉じた手: <span class="text-cyan-400 font-bold">Iブロック</span><br>
+                • 手を握ったグー: <span class="text-yellow-400 font-bold">Oブロック</span><br>
+                • 両手のひらを直角に交差: <span class="text-purple-400 font-bold">Tブロック</span><br>
+                • L字・J字を形成: <span class="text-orange-400 font-bold">L/Jブロック</span></p>
+            </div>
+            <button id="btnModalOk" class="w-full mt-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl border border-slate-700 transition-all">
+                了解！
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Sound System (Web Audio API)
+        class SoundEffects {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+
+            playBeep(freq, duration = 0.08, type = 'sine') {
+                if (this.muted || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch(e) {}
+            }
+
+            playMove() { this.playBeep(220, 0.05, 'triangle'); }
+            playRotate() { this.playBeep(440, 0.08, 'sine'); }
+            playDrop() { this.playBeep(150, 0.1, 'sawtooth'); }
+            playClear() {
+                if (this.muted || !this.ctx) return;
+                [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+                    setTimeout(() => this.playBeep(freq, 0.12, 'square'), idx * 60);
+                });
+            }
+            playShutter() {
+                this.playBeep(800, 0.05, 'noise');
+                setTimeout(() => this.playBeep(1200, 0.08, 'sine'), 50);
+            }
+            playGameOver() {
+                if (this.muted || !this.ctx) return;
+                [300, 250, 200, 150].forEach((freq, idx) => {
+                    setTimeout(() => this.playBeep(freq, 0.15, 'sawtooth'), idx * 120);
+                });
+            }
+        }
+
+        const sound = new SoundEffects();
+
+        // Tetris Piece Colors & Shapes
+        const PIECES = {
+            I: {
+                color: '#00f0f0',
+                shadow: 'rgba(0, 240, 240, 0.6)',
+                shape: [
+                    [0,0,0,0],
+                    [1,1,1,1],
+                    [0,0,0,0],
+                    [0,0,0,0]
+                ]
+            },
+            J: {
+                color: '#0000f0',
+                shadow: 'rgba(0, 0, 240, 0.6)',
+                shape: [
+                    [1,0,0],
+                    [1,1,1],
+                    [0,0,0]
+                ]
+            },
+            L: {
+                color: '#f0a000',
+                shadow: 'rgba(240, 160, 0, 0.6)',
+                shape: [
+                    [0,0,1],
+                    [1,1,1],
+                    [0,0,0]
+                ]
+            },
+            O: {
+                color: '#f0f000',
+                shadow: 'rgba(240, 240, 0, 0.6)',
+                shape: [
+                    [1,1],
+                    [1,1]
+                ]
+            },
+            S: {
+                color: '#00f000',
+                shadow: 'rgba(0, 240, 0, 0.6)',
+                shape: [
+                    [0,1,1],
+                    [1,1,0],
+                    [0,0,0]
+                ]
+            },
+            T: {
+                color: '#a000f0',
+                shadow: 'rgba(160, 0, 240, 0.6)',
+                shape: [
+                    [0,1,0],
+                    [1,1,1],
+                    [0,0,0]
+                ]
+            },
+            Z: {
+                color: '#f00000',
+                shadow: 'rgba(240, 0, 0, 0.6)',
+                shape: [
+                    [1,1,0],
+                    [0,1,1],
+                    [0,0,0]
+                ]
+            }
+        };
+
+        const PIECE_KEYS = ['I', 'J', 'L', 'O', 'S', 'T', 'Z'];
+
+        const COLS = 10;
+        const ROWS = 20;
+        const BLOCK_SIZE = 24;
+
+        const tetrisCanvas = document.getElementById('tetrisCanvas');
+        const tetrisCtx = tetrisCanvas.getContext('2d');
+
+        let board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+        let score = 0;
+        let lines = 0;
+        let level = 1;
+        let gameOver = false;
+        let gameRunning = false;
+        let isCountingDown = false;
+        let isAiAnalyzing = false;
+
+        let currentPiece = null;
+
+        let dropCounter = 0;
+        let dropInterval = 1000; // ms
+        let lastTime = 0;
+        let animationFrameId = null;
+
+        const video = document.getElementById('webcam');
+        const snapshotCanvas = document.getElementById('snapshotCanvas');
+        const cameraPrompt = document.getElementById('cameraPrompt');
+        const camStatus = document.getElementById('camStatus');
+        const countdownOverlay = document.getElementById('countdownOverlay');
+        const countdownText = document.getElementById('countdownText');
+        const flashOverlay = document.getElementById('flashOverlay');
+        const aiLoader = document.getElementById('aiLoader');
+        const aiReason = document.getElementById('aiReason');
+        const spawnedBlockBadge = document.getElementById('spawnedBlockBadge');
+
+        let cameraStream = null;
+
+        async function initCamera() {
+            try {
+                camStatus.textContent = '起動中...';
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+                    audio: false
+                });
+                video.srcObject = cameraStream;
+                cameraPrompt.classList.add('hidden');
+                camStatus.textContent = 'ON';
+                camStatus.className = 'text-xs text-emerald-400 font-bold';
+            } catch (err) {
+                console.warn('Camera access denied or error:', err);
+                camStatus.textContent = 'OFF (ランダム動作)';
+                camStatus.className = 'text-xs text-amber-400';
+                cameraPrompt.innerHTML = `
+                    <i class="fa-solid fa-camera-slash text-3xl text-amber-400 mb-2"></i>
+                    <p class="text-xs font-bold text-slate-300">カメラが利用できません</p>
+                    <p class="text-[10px] text-slate-400">ランダムピース生成モードでプレイできます</p>
+                `;
+            }
+        }
+
+        // Start 3-second Countdown & Capture Image at 0 -> AI -> Spawn Piece directly
+        async function runPoseCaptureAndSpawnFlow() {
+            currentPiece = null; // Clear active piece during countdown/AI process
+
+            if (!cameraStream) {
+                // Fallback if camera is unavailable
+                const randomKey = getRandomPieceKey();
+                aiReason.textContent = "カメラオフのため、ランダムでピースを選択しました。";
+                spawnPiece(randomKey);
+                return;
+            }
+
+            isCountingDown = true;
+            countdownOverlay.classList.remove('opacity-0', 'pointer-events-none');
+            let count = 3;
+            countdownText.textContent = count;
+            sound.playBeep(600, 0.1);
+
+            await new Promise((resolve) => {
+                const timer = setInterval(() => {
+                    count--;
+                    if (count > 0) {
+                        countdownText.textContent = count;
+                        sound.playBeep(600, 0.1);
+                    } else {
+                        clearInterval(timer);
+                        countdownOverlay.classList.add('opacity-0', 'pointer-events-none');
+                        isCountingDown = false;
+                        
+                        // Flash effect & Shutter sound right at 0
+                        flashOverlay.classList.add('flash');
+                        sound.playShutter();
+                        setTimeout(() => flashOverlay.classList.remove('flash'), 300);
+
+                        resolve();
+                    }
+                }, 1000);
+            });
+
+            // Capture frame exactly at zero
+            const base64Image = captureCameraFrame();
+            
+            // Send to Gemini AI and await result before spawning next piece
+            const determinedPieceKey = await analyzeImageWithGemini(base64Image);
+            
+            // Spawn determined block into tetris board
+            spawnPiece(determinedPieceKey);
+        }
+
+        function captureCameraFrame() {
+            snapshotCanvas.width = video.videoWidth || 320;
+            snapshotCanvas.height = video.videoHeight || 240;
+            const ctx = snapshotCanvas.getContext('2d');
+            // Mirror image horizontally to match webcam display
+            ctx.translate(snapshotCanvas.width, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, 0, 0, snapshotCanvas.width, snapshotCanvas.height);
+            
+            const dataUrl = snapshotCanvas.toDataURL('image/jpeg', 0.85);
+            
+            // Show preview thumbnail in AI status card
+            const previewImg = document.getElementById('snapshotPreview');
+            const placeholderIcon = document.getElementById('snapshotPlaceholder');
+            if (previewImg && placeholderIcon) {
+                previewImg.src = dataUrl;
+                previewImg.classList.remove('hidden');
+                placeholderIcon.classList.add('hidden');
+            }
+
+            return dataUrl.split(',')[1];
+        }
+
+        async function analyzeImageWithGemini(base64Image) {
+            isAiAnalyzing = true;
+            aiLoader.classList.remove('hidden');
+            spawnedBlockBadge.textContent = "AI解析中...";
+
+            const systemPrompt = `You are an extremely strict, ultra-precise referee and posture analyst for "Pose Tetris".
+Your sole responsibility is to strictly evaluate the geometry of the user's hand and palm in the camera photo and categorize it with High Precision into EXACTLY ONE Tetris piece (I, J, L, O, S, T, Z).
+
+STRICT GEOMETRIC CRITERIA (HAND):
+- "I": A tightly closed, flat palm forming a single straight rectangle (like the letter I).
+- "T": One flat palm crossed at right angles onto the wrist of the other hand, forming a precise 'T' shape.
+- "O": A closed fist or tightly cupped hand, forming a square/blocky mass.
+- "L": Forming a crisp 90-degree right angle 'L' using the thumb and index finger, or other fingers.
+- "J": Mirror image of 'L', opposite hand forming a 90-degree right angle 'L'.
+- "S": A cranked or zig-zag shaped palm, with the fingers and palm bent in a staggered crank shape.
+- "Z": Mirror image of 'S', the opposite cranked zig-zag shape.
+
+CRITICAL EVALUATION INSTRUCTIONS:
+1. Measure the geometric angles of the palm and fingers strictly to differentiate between closed fist (O), flat palm (I), and 'T' shape.
+2. If hand geometry is ambiguous, choose closest piece and state defect in reason.
+3. Return valid JSON.
+4. "reason": Short strict comment in Japanese (max 22 characters) like "グーで四角判定！綺麗なO型" or "少し開いていますがI型判定".`;
+
+            const payload = {
+                contents: [{
+                    role: "user",
+                    parts: [
+                        { text: "画像の「手の形（ジオメトリ）」を幾何学的に測定し、落ちてくるテトリスブロック(I, J, L, O, S, T, Z)を判定してください。" },
+                        { inlineData: { mimeType: "image/jpeg", data: base64Image } }
+                    ]
+                }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            piece: { type: "STRING", enum: ["I", "J", "L", "O", "S", "T", "Z"] },
+                            reason: { type: "STRING" }
+                        },
+                        required: ["piece", "reason"]
+                    }
+                },
+                systemInstruction: { parts: [{ text: systemPrompt }] }
+            };
+
+            const apiKey = ""; // Canvas runtime automatically supplies key when empty
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            let selectedPiece = getRandomPieceKey();
+
+            try {
+                const res = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                const textResult = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                
+                if (textResult) {
+                    const parsed = JSON.parse(textResult);
+                    if (PIECES[parsed.piece]) {
+                        selectedPiece = parsed.piece;
+                        aiReason.textContent = parsed.reason || `判定結果: ${selectedPiece}ブロック`;
+                    }
+                }
+            } catch (err) {
+                console.error('Gemini API Error:', err);
+                aiReason.textContent = "判定エラー。ランダムなブロックを生成しました。";
+            } finally {
+                isAiAnalyzing = false;
+                aiLoader.classList.add('hidden');
+                spawnedBlockBadge.textContent = `${selectedPiece} BLOCK 出現！`;
+            }
+
+            return selectedPiece;
+        }
+
+        function getRandomPieceKey() {
+            return PIECE_KEYS[Math.floor(Math.random() * PIECE_KEYS.length)];
+        }
+
+        function createPiece(key) {
+            const p = PIECES[key];
+            return {
+                key: key,
+                matrix: p.shape.map(row => [...row]),
+                color: p.color,
+                shadow: p.shadow,
+                x: Math.floor(COLS / 2) - Math.ceil(p.shape[0].length / 2),
+                y: 0
+            };
+        }
+
+        function spawnPiece(pieceKey) {
+            currentPiece = createPiece(pieceKey);
+
+            // Collision check on spawn (Game Over)
+            if (collide(board, currentPiece)) {
+                gameOver = true;
+                gameRunning = false;
+                sound.playGameOver();
+                showOverlay("GAME OVER", `Final Score: ${score}<br>Restartボタンで再挑戦！`);
+            }
+        }
+
+        function rotate(matrix, dir) {
+            const N = matrix.length;
+            const result = Array.from({ length: N }, () => Array(N).fill(0));
+            for (let y = 0; y < N; y++) {
+                for (let x = 0; x < N; x++) {
+                    if (dir > 0) {
+                        result[x][N - 1 - y] = matrix[y][x]; // Clockwise (C)
+                    } else {
+                        result[N - 1 - x][y] = matrix[y][x]; // Counter-clockwise (Z)
+                    }
+                }
+            }
+            return result;
+        }
+
+        function playerRotate(dir) {
+            if (!currentPiece || isCountingDown || isAiAnalyzing || gameOver) return;
+            const oldMatrix = currentPiece.matrix;
+            const pos = currentPiece.x;
+            currentPiece.matrix = rotate(currentPiece.matrix, dir);
+            
+            let offset = 1;
+            while (collide(board, currentPiece)) {
+                currentPiece.x += offset;
+                offset = -(offset + (offset > 0 ? 1 : -1));
+                if (offset > currentPiece.matrix[0].length) {
+                    currentPiece.matrix = oldMatrix;
+                    currentPiece.x = pos;
+                    return;
+                }
+            }
+            sound.playRotate();
+        }
+
+        function moveLeft() {
+            if (!currentPiece || isCountingDown || isAiAnalyzing || gameOver) return;
+            currentPiece.x--;
+            if (collide(board, currentPiece)) {
+                currentPiece.x++;
+            } else {
+                sound.playMove();
+            }
+        }
+
+        function moveRight() {
+            if (!currentPiece || isCountingDown || isAiAnalyzing || gameOver) return;
+            currentPiece.x++;
+            if (collide(board, currentPiece)) {
+                currentPiece.x--;
+            } else {
+                sound.playMove();
+            }
+        }
+
+        async function playerDrop() {
+            if (!currentPiece || isCountingDown || isAiAnalyzing || gameOver) return;
+            currentPiece.y++;
+            if (collide(board, currentPiece)) {
+                currentPiece.y--;
+                merge(board, currentPiece);
+                sound.playDrop();
+                clearLines();
+
+                // Lock block & trigger countdown -> capture -> AI -> next block spawn
+                if (gameRunning) {
+                    await runPoseCaptureAndSpawnFlow();
+                }
+            }
+            dropCounter = 0;
+        }
+
+        async function hardDrop() {
+            if (!currentPiece || isCountingDown || isAiAnalyzing || gameOver) return;
+            while (!collide(board, currentPiece)) {
+                currentPiece.y++;
+            }
+            currentPiece.y--;
+            merge(board, currentPiece);
+            sound.playDrop();
+            clearLines();
+
+            // Lock block & trigger countdown -> capture -> AI -> next block spawn
+            if (gameRunning) {
+                await runPoseCaptureAndSpawnFlow();
+            }
+            dropCounter = 0;
+        }
+
+        function collide(board, piece) {
+            const m = piece.matrix;
+            for (let y = 0; y < m.length; y++) {
+                for (let x = 0; x < m[y].length; x++) {
+                    if (m[y][x] !== 0) {
+                        const boardX = piece.x + x;
+                        const boardY = piece.y + y;
+                        if (
+                            boardX < 0 ||
+                            boardX >= COLS ||
+                            boardY >= ROWS ||
+                            (boardY >= 0 && board[boardY][boardX] !== 0)
+                        ) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        function merge(board, piece) {
+            piece.matrix.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value !== 0) {
+                        const boardY = piece.y + y;
+                        const boardX = piece.x + x;
+                        if (boardY >= 0) {
+                            board[boardY][boardX] = piece.color;
+                        }
+                    }
+                });
+            });
+        }
+
+        function clearLines() {
+            let linesCleared = 0;
+            outer: for (let y = ROWS - 1; y >= 0; y--) {
+                for (let x = 0; x < COLS; x++) {
+                    if (board[y][x] === 0) continue outer;
+                }
+                const row = board.splice(y, 1)[0].fill(0);
+                board.unshift(row);
+                linesCleared++;
+                y++;
+            }
+
+            if (linesCleared > 0) {
+                sound.playClear();
+                lines += linesCleared;
+                score += linesCleared === 1 ? 100 : linesCleared === 2 ? 300 : linesCleared === 3 ? 500 : 800;
+                level = Math.floor(lines / 10) + 1;
+                dropInterval = Math.max(150, 1000 - (level - 1) * 80);
+
+                document.getElementById('scoreText').textContent = score;
+                document.getElementById('linesText').textContent = lines;
+                document.getElementById('levelText').textContent = level;
+            }
+        }
+
+        function drawBlock(ctx, x, y, color, size = BLOCK_SIZE) {
+            ctx.fillStyle = color;
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 8;
+            ctx.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
+
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+            ctx.fillRect(x * size + 1, y * size + 1, size - 2, 3);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+            ctx.fillRect(x * size + 1, (y + 1) * size - 4, size - 2, 3);
+        }
+
+        function drawBoard() {
+            tetrisCtx.fillStyle = '#030712';
+            tetrisCtx.fillRect(0, 0, tetrisCanvas.width, tetrisCanvas.height);
+
+            // Grid lines
+            tetrisCtx.strokeStyle = '#1e293b';
+            tetrisCtx.lineWidth = 0.5;
+            for (let x = 0; x <= COLS; x++) {
+                tetrisCtx.beginPath();
+                tetrisCtx.moveTo(x * BLOCK_SIZE, 0);
+                tetrisCtx.lineTo(x * BLOCK_SIZE, tetrisCanvas.height);
+                tetrisCtx.stroke();
+            }
+            for (let y = 0; y <= ROWS; y++) {
+                tetrisCtx.beginPath();
+                tetrisCtx.moveTo(0, y * BLOCK_SIZE);
+                tetrisCtx.lineTo(tetrisCanvas.width, y * BLOCK_SIZE);
+                tetrisCtx.stroke();
+            }
+
+            // Draw landed blocks
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    if (board[y][x] !== 0) {
+                        drawBlock(tetrisCtx, x, y, board[y][x]);
+                    }
+                }
+            }
+
+            // Draw ghost piece
+            if (currentPiece && !isCountingDown && !isAiAnalyzing) {
+                const ghost = { ...currentPiece, y: currentPiece.y };
+                while (!collide(board, ghost)) {
+                    ghost.y++;
+                }
+                ghost.y--;
+
+                tetrisCtx.strokeStyle = currentPiece.color;
+                tetrisCtx.lineWidth = 1.5;
+                ghost.matrix.forEach((row, y) => {
+                    row.forEach((value, x) => {
+                        if (value !== 0) {
+                            tetrisCtx.strokeRect(
+                                (ghost.x + x) * BLOCK_SIZE + 2,
+                                (ghost.y + y) * BLOCK_SIZE + 2,
+                                BLOCK_SIZE - 4,
+                                BLOCK_SIZE - 4
+                            );
+                        }
+                    });
+                });
+            }
+
+            // Draw active piece
+            if (currentPiece && !isCountingDown && !isAiAnalyzing) {
+                currentPiece.matrix.forEach((row, y) => {
+                    row.forEach((value, x) => {
+                        if (value !== 0) {
+                            drawBlock(tetrisCtx, currentPiece.x + x, currentPiece.y + y, currentPiece.color);
+                        }
+                    });
+                });
+            }
+        }
+
+        function update(time = 0) {
+            const deltaTime = time - lastTime;
+            lastTime = time;
+
+            if (gameRunning && !isCountingDown && !isAiAnalyzing && !gameOver) {
+                dropCounter += deltaTime;
+                if (dropCounter > dropInterval) {
+                    playerDrop();
+                }
+            }
+
+            drawBoard();
+            animationFrameId = requestAnimationFrame(update);
+        }
+
+        async function startGame() {
+            sound.init();
+            board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+            score = 0;
+            lines = 0;
+            level = 1;
+            dropInterval = 1000;
+            gameOver = false;
+            gameRunning = true;
+
+            document.getElementById('scoreText').textContent = '0';
+            document.getElementById('linesText').textContent = '0';
+            document.getElementById('levelText').textContent = '1';
+            hideOverlay();
+
+            lastTime = performance.now();
+            if (!animationFrameId) {
+                update();
+            }
+
+            // Start first capture & spawn flow
+            await runPoseCaptureAndSpawnFlow();
+        }
+
+        function showOverlay(title, sub) {
+            document.getElementById('overlayTitle').textContent = title;
+            document.getElementById('overlaySub').innerHTML = sub;
+            document.getElementById('btnStartGame').textContent = "RESTART GAME";
+            document.getElementById('gameOverlay').classList.remove('hidden');
+        }
+
+        function hideOverlay() {
+            document.getElementById('gameOverlay').classList.add('hidden');
+        }
+
+        // Keyboard Input handling (4 directions, Z, C)
+        document.addEventListener('keydown', (e) => {
+            if (!gameRunning || isCountingDown || isAiAnalyzing || gameOver) return;
+
+            switch (e.key) {
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    moveLeft();
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    moveRight();
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    playerDrop();
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    hardDrop();
+                    break;
+                case 'z':
+                case 'Z':
+                    e.preventDefault();
+                    playerRotate(-1);
+                    break;
+                case 'c':
+                case 'C':
+                    e.preventDefault();
+                    playerRotate(1);
+                    break;
+            }
+        });
+
+        // Touch Control Listeners
+        document.getElementById('btnLeft')?.addEventListener('click', moveLeft);
+        document.getElementById('btnRight')?.addEventListener('click', moveRight);
+        document.getElementById('btnDown')?.addEventListener('click', playerDrop);
+        document.getElementById('btnHardDrop')?.addEventListener('click', hardDrop);
+        document.getElementById('btnRotL')?.addEventListener('click', () => playerRotate(-1));
+        document.getElementById('btnRotR')?.addEventListener('click', () => playerRotate(1));
+
+        // Start Buttons
+        document.getElementById('btnStartGame')?.addEventListener('click', startGame);
+        document.getElementById('btnStartCamera')?.addEventListener('click', initCamera);
+
+        // Sound Toggle
+        document.getElementById('btnSound')?.addEventListener('click', () => {
+            sound.muted = !sound.muted;
+            const icon = document.getElementById('iconSound');
+            if (icon) {
+                icon.className = sound.muted
+                    ? "fa-solid fa-volume-xmark text-lg text-slate-500"
+                    : "fa-solid fa-volume-high text-lg text-cyan-400";
+            }
+        });
+
+        // Instructions Modal Toggle
+        const helpModal = document.getElementById('helpModal');
+        document.getElementById('btnHelp')?.addEventListener('click', () => helpModal?.classList.remove('hidden'));
+        document.getElementById('btnCloseHelp')?.addEventListener('click', () => helpModal?.classList.add('hidden'));
+        document.getElementById('btnModalOk')?.addEventListener('click', () => helpModal?.classList.add('hidden'));
+
+        // Initialize on load
+        window.addEventListener('load', () => {
+            initCamera();
+            drawBoard();
+        });
+    </script>
+</body>
+</html>
