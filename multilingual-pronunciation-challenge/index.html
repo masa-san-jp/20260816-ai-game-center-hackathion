@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Canvas Confetti -->
+    <!-- Canvas Confetti for Game Effect -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
     <script>
@@ -32,15 +32,6 @@
                             yellow: '#f59e0b',
                             green: '#10b981',
                         }
-                    },
-                    animation: {
-                        'flash-update': 'flashUpdate 0.5s ease-out forwards',
-                    },
-                    keyframes: {
-                        flashUpdate: {
-                            '0%': { transform: 'scale(0.98)', opacity: '0.4', filter: 'brightness(1.5)' },
-                            '100%': { transform: 'scale(1)', opacity: '1', filter: 'brightness(1)' }
-                        }
                     }
                 }
             }
@@ -58,21 +49,19 @@
         .glow-effect {
             box-shadow: 0 0 25px -5px rgba(99, 102, 241, 0.4);
         }
-        .highlight-badge {
-            animation: popIn 0.3s ease-out;
+        @keyframes flashUpdate {
+            0% { background-color: rgba(99, 102, 241, 0.25); transform: scale(0.99); }
+            100% { background-color: rgba(15, 23, 42, 0.6); transform: scale(1); }
         }
-        @keyframes popIn {
-            0% { transform: scale(0.85); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
+        .animate-flash-update {
+            animation: flashUpdate 0.6s ease-out forwards;
         }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
 
-    <!-- Toast Notification Container -->
-    <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
-
-    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-40">
+    <!-- Header Navigation -->
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
         <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
             <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
@@ -80,11 +69,11 @@
                 </div>
                 <div>
                     <h1 class="font-display font-bold text-xl text-white tracking-wide">Multilingual Pronunciation Challenge</h1>
-                    <p class="text-xs text-slate-400">AI 多言語空耳発音・アクセント判定ゲーム</p>
+                    <p class="text-xs text-slate-400">AI 多言語発音・アクセント判定ゲーム (英・仏・中・伊)</p>
                 </div>
             </div>
 
-            <!-- Stats Counter -->
+            <!-- Stats Tracker -->
             <div class="flex items-center space-x-3">
                 <div class="bg-slate-800/80 border border-slate-700/60 px-3 py-1.5 rounded-xl flex items-center space-x-2">
                     <i class="fa-solid fa-fire text-amber-500 text-sm"></i>
@@ -104,9 +93,12 @@
         </div>
     </header>
 
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="fixed top-20 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
     <main class="flex-grow max-w-4xl w-full mx-auto px-4 py-6 flex flex-col gap-4">
 
-        <!-- Controls: Mode Switcher & Language Selector -->
+        <!-- Controls Bar: Mode Switcher & Language Selector -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <!-- Mode Switcher -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 flex items-center justify-between gap-2">
@@ -117,11 +109,11 @@
                 <div id="modeFilterGroup" class="flex items-center gap-1.5 text-xs font-semibold">
                     <button data-mode="preset" class="topic-mode-btn px-3 py-1.5 rounded-xl bg-indigo-600 text-white shadow-sm transition-all flex items-center space-x-1">
                         <i class="fa-solid fa-bolt text-amber-300"></i>
-                        <span>⚡ プリセット (即時切替)</span>
+                        <span>⚡ プリセット (爆速)</span>
                     </button>
                     <button data-mode="ai" class="topic-mode-btn px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all flex items-center space-x-1">
                         <i class="fa-solid fa-wand-magic-sparkles text-purple-400"></i>
-                        <span>✨ AI自動生成</span>
+                        <span>✨ AI生成 (無限)</span>
                     </button>
                 </div>
             </div>
@@ -142,14 +134,15 @@
             </div>
         </div>
 
+        <!-- Topic Card Container -->
         <section class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden glow-effect">
             <div class="absolute -top-24 -right-24 w-60 h-60 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
             <div class="absolute -bottom-24 -left-24 w-60 h-60 bg-pink-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
-            <!-- ★ お題① 判定対象言語 -->
+            <!-- お題①: 判定対象言語 -->
             <div class="flex flex-wrap items-center justify-between gap-3 mb-6 relative z-10 border-b border-slate-800/80 pb-4">
                 <div>
-                    <span class="text-xs font-bold text-indigo-400 uppercase tracking-widest block mb-1">
+                    <span class="text-[11px] font-bold text-indigo-400 uppercase tracking-widest block mb-1">
                         <i class="fa-solid fa-bullseye mr-1"></i>お題① 判定対象言語
                     </span>
                     <div id="targetLangBadge" class="inline-flex items-center space-x-2 px-4 py-2 rounded-2xl text-base font-extrabold bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-pink-500/20 text-white border border-indigo-500/40 shadow-lg shadow-indigo-500/10">
@@ -159,74 +152,37 @@
                 </div>
 
                 <div class="flex items-center space-x-2">
-                    <button id="nextTopicBtn" class="px-4 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white shadow-md shadow-indigo-600/30 flex items-center space-x-1.5 transition-all">
-                        <i class="fa-solid fa-arrows-rotate"></i>
+                    <button id="nextTopicBtn" class="px-4 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-600/30 flex items-center space-x-2 transition-all active:scale-95">
+                        <i class="fa-solid fa-rotate"></i>
                         <span>次のお題へ</span>
                     </button>
                 </div>
             </div>
 
-            <!-- ★ お題② 読み上げる空耳日本語文章 -->
-            <div class="text-center my-5 relative z-10">
+            <!-- お題②: 読み上げる空耳日本語文章 (15文字以下の自然な日常日本語) -->
+            <div class="text-center my-6 relative z-10">
                 <div class="flex items-center justify-center space-x-2 mb-2">
-                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">
-                        <i class="fa-solid fa-comment-dots mr-1 text-purple-400"></i>お題② 読み上げる空耳日本語文章
-                    </span>
-                    <span id="charCountBadge" class="text-[10px] px-2.5 py-0.5 rounded-full bg-slate-800 text-indigo-300 font-mono font-bold">--文字</span>
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">お題② 読み上げる空耳日本語文章 (15文字以下)</span>
+                    <span id="charCountBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-indigo-300 font-mono font-bold">11文字</span>
                 </div>
                 
-                <div id="topicTextContainer" class="min-h-[85px] flex flex-col items-center justify-center bg-slate-950/70 p-4 rounded-2xl border border-slate-800/80 shadow-inner transition-all">
+                <div id="topicTextBox" class="min-h-[80px] flex flex-col items-center justify-center bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80 transition-all">
                     <h2 id="topicText" class="text-2xl sm:text-3xl font-extrabold text-white leading-snug tracking-wide">
-                        読み込み中...
+                        <i class="fa-solid fa-spinner fa-spin text-indigo-400 text-2xl"></i> お題を作成中...
                     </h2>
                 </div>
-            </div>
 
-            <!-- 空耳お手本セクション (更新時にアニメーション) -->
-            <div id="modelContainer" class="relative z-10 my-4 bg-gradient-to-r from-indigo-950/40 via-purple-950/30 to-pink-950/40 border border-indigo-500/30 rounded-2xl p-4 shadow-lg transition-all">
-                <div class="flex flex-wrap items-center justify-between gap-2 mb-2 border-b border-indigo-500/20 pb-2">
-                    <div class="flex items-center space-x-2">
-                        <span class="px-2 py-0.5 rounded-md bg-indigo-500/30 text-indigo-200 text-[11px] font-bold border border-indigo-500/40 flex items-center">
-                            <i class="fa-solid fa-ear-listen mr-1 text-indigo-300"></i>空耳お手本
-                        </span>
-                        <span class="text-xs text-slate-300 font-medium">お題①の言語っぽく読むと、現地ではこう聴こえる！</span>
+                <div class="mt-4">
+                    <div id="accentHintBox" class="text-xs text-indigo-300/90 bg-indigo-950/40 border border-indigo-800/30 inline-block px-4 py-2 rounded-xl">
+                        <i class="fa-solid fa-circle-info mr-1.5 text-indigo-400"></i>
+                        <span id="accentHintText">発音ヒント: 対象言語のネイティブ風アクセントを意識して音読してください</span>
                     </div>
-                    
-                    <!-- Native Audio Play Button -->
-                    <button id="listenNativeBtn" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white shadow-md shadow-indigo-600/30 flex items-center space-x-1.5 transition-all">
-                        <i class="fa-solid fa-volume-high"></i>
-                        <span>お手本音声を再生</span>
-                    </button>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 text-xs">
-                    <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800">
-                        <div class="flex items-center justify-between mb-1">
-                            <span class="text-[10px] text-indigo-400 font-semibold">元ネタ外国語フレーズ</span>
-                            <span id="topicIdBadge" class="text-[9px] px-1.5 py-0.2 rounded bg-indigo-950 text-indigo-300 font-mono">#01</span>
-                        </div>
-                        <p id="modelPhrase" class="text-sm font-bold text-white tracking-wide font-sans">---</p>
-                    </div>
-                    <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800">
-                        <span class="text-[10px] text-purple-400 font-semibold block mb-1">発音の響き（カタカナ）</span>
-                        <p id="modelReading" class="text-xs font-medium text-slate-200">---</p>
-                    </div>
-                    <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800">
-                        <span class="text-[10px] text-amber-400 font-semibold block mb-1">日本語での意味</span>
-                        <p id="modelMeaning" class="text-xs font-medium text-slate-300">---</p>
-                    </div>
-                </div>
-
-                <div class="mt-3 pt-2 border-t border-indigo-500/20 flex items-center text-[11px] text-indigo-300/90">
-                    <i class="fa-solid fa-circle-info mr-1.5 text-indigo-400"></i>
-                    <span id="accentHintText">発音ヒント: お題①の言語のネイティブ風アクセントを意識して音読してください</span>
                 </div>
             </div>
 
-            <div class="mt-6 pt-5 border-t border-slate-800/80 flex flex-col items-center relative z-10">
-                
-                <!-- Audio Visualizer Canvas -->
-                <div class="w-full max-w-md h-14 mb-4 bg-slate-950 rounded-2xl border border-slate-800 flex items-center justify-center overflow-hidden relative">
+            <!-- Microphone Input and Waveform Visualizer -->
+            <div class="mt-8 pt-6 border-t border-slate-800/80 flex flex-col items-center relative z-10">
+                <div class="w-full max-w-md h-14 mb-5 bg-slate-950 rounded-2xl border border-slate-800 flex items-center justify-center overflow-hidden relative">
                     <canvas id="visualizer" class="w-full h-full"></canvas>
                     <div id="visualizerPlaceholder" class="text-xs text-slate-500 flex items-center space-x-2">
                         <i class="fa-solid fa-microphone-lines"></i>
@@ -234,29 +190,28 @@
                     </div>
                 </div>
 
-                <!-- Record Button -->
                 <div class="relative flex items-center justify-center mb-3">
                     <div id="pulseRing" class="hidden absolute w-28 h-28 rounded-full bg-rose-500/30 pulse-ring"></div>
-                    <button id="recordBtn" class="relative z-10 w-20 h-20 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 active:scale-95 text-white flex items-center justify-center text-2xl shadow-xl shadow-indigo-500/30 transition-all">
+                    <button id="recordBtn" disabled class="relative z-10 w-20 h-20 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 active:scale-95 disabled:opacity-50 text-white flex items-center justify-center text-2xl shadow-xl shadow-indigo-500/30 transition-all">
                         <i id="recordIcon" class="fa-solid fa-microphone"></i>
                     </button>
                 </div>
 
-                <!-- Status & Recording Timer -->
                 <div id="statusBox" class="text-sm font-medium text-slate-300 flex items-center space-x-2">
                     <span id="statusDot" class="w-2.5 h-2.5 rounded-full bg-slate-600"></span>
-                    <span id="statusText">録音ボタンを押してお題②を音読してください</span>
+                    <span id="statusText">録音ボタンを押してお題を読み上げる</span>
                 </div>
                 <div id="timer" class="text-xs font-mono text-indigo-400 mt-1 hidden">00:00</div>
             </div>
         </section>
 
+        <!-- Loading State Card -->
         <div id="loadingBox" class="hidden bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center animate-pulse">
             <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-500/10 text-indigo-400 mb-4 border border-indigo-500/20">
                 <i class="fa-solid fa-brain fa-spin text-2xl"></i>
             </div>
             <h3 class="text-lg font-bold text-white mb-1">AIが「音声の発音・音韻アクセント」を判定中...</h3>
-            <p class="text-xs text-slate-400">文章の意味ではなく、お題①の発音特性・声調・音素として聴こえるかを判定しています</p>
+            <p class="text-xs text-slate-400">文章の意味ではなく、指定言語（お題①）の発音特性・声調・音素として聴こえるかを判定しています</p>
         </div>
 
         <!-- Result Card -->
@@ -324,7 +279,7 @@
             </div>
         </section>
 
-        <!-- History Section -->
+        <!-- Challenge History Section -->
         <section class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-3">
             <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
                 <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center space-x-2">
@@ -346,219 +301,23 @@
     </main>
 
     <footer class="mt-auto border-t border-slate-800/80 bg-slate-950 py-4 text-center text-xs text-slate-500">
-        <p>Multilingual Pronunciation Master &copy; Powered by Gemini 3 Flash & Web Speech API</p>
+        <p>Powered by Gemini 3 Flash & Web Audio API</p>
     </footer>
 
     <script>
-        // 大幅拡充された空耳日本語お題＆お手本データベース
-        const SORAMIMI_DATABASE = {
-            en: [
-                {
-                    ja: "掘った芋をいじるなよ",
-                    origin: "What time is it now?",
-                    reading: "ワッ タイミジット ナウ",
-                    meaning: "今何時ですか？"
-                },
-                {
-                    ja: "湯呑みを洗うなよ",
-                    origin: "You know me, I love options",
-                    reading: "ユー ノウ ミー アイ ラヴ オプシャンズ",
-                    meaning: "私を知ってるでしょ、選択肢が好きなの"
-                },
-                {
-                    ja: "知らん顔をするなよ",
-                    origin: "Sit down, girl",
-                    reading: "シッ ダウン ガール",
-                    meaning: "座りなさい、お嬢さん"
-                },
-                {
-                    ja: "ここで揚げ豆腐を食べる",
-                    origin: "I get off here",
-                    reading: "アイ ゲロッフ ヒア",
-                    meaning: "ここで降ります"
-                },
-                {
-                    ja: "斉藤さんは寝そうです",
-                    origin: "Sightseeing is nice",
-                    reading: "サイトスィーイング イズ ナイス",
-                    meaning: "観光は素敵です"
-                },
-                {
-                    ja: "朝寝坊してしまったよ",
-                    origin: "I shouldn't be so late",
-                    reading: "アイ シュドゥント ビー ソウ レイト",
-                    meaning: "そんなに遅れるべきではなかった"
-                },
-                {
-                    ja: "あっそう、兄貴が言ったの？",
-                    origin: "I saw an eagle fly",
-                    reading: "アイ ソー アン イーグル フライ",
-                    meaning: "ワシが飛ぶのを見たよ"
-                },
-                {
-                    ja: "お茶を一杯いかがですか",
-                    origin: "Oh check one pack and card",
-                    reading: "オウ チェック ワン パック アンド カード",
-                    meaning: "1つの荷物とカードを確認してください"
-                },
-                {
-                    ja: "ご飯をたくさん食べよう",
-                    origin: "Go home at that sun time",
-                    reading: "ゴー ホーム アット ダット サン タイム",
-                    meaning: "あの日の入り時に家に帰ろう"
-                }
-            ],
-            fr: [
-                {
-                    ja: "それはあんまりですね",
-                    origin: "Un mari est là",
-                    reading: "アン マリ エ ラ",
-                    meaning: "夫がそこにいます"
-                },
-                {
-                    ja: "お椀と皿があります",
-                    origin: "Vent et vent souffle",
-                    reading: "ヴァン エ ヴァン スーフル",
-                    meaning: "風また風が吹き抜ける"
-                },
-                {
-                    ja: "朝顔が咲きましたよ",
-                    origin: "Ah, ça ira toujours",
-                    reading: "ア サ イラ トゥジュール",
-                    meaning: "ああ、いつもうまくいくさ"
-                },
-                {
-                    ja: "冷たいジュースを飲む",
-                    origin: "Jus de pomme frais",
-                    reading: "ジュ ドゥ ポム フレ",
-                    meaning: "冷たいりんごジュース"
-                },
-                {
-                    ja: "ぼんやり空を眺める",
-                    origin: "Bonjour à tous",
-                    reading: "ボンジュール ア トゥス",
-                    meaning: "皆さんこんにちは"
-                },
-                {
-                    ja: "メルシーの傘を探す",
-                    origin: "Merci beaucoup",
-                    reading: "メルスィ ボクー",
-                    meaning: "どうもありがとうございます"
-                },
-                {
-                    ja: "セボンと言って笑った",
-                    origin: "C'est bon pour vous",
-                    reading: "セ ボン プーヴー",
-                    meaning: "あなたにとって良いことです"
-                },
-                {
-                    ja: "門の前に犬がいるよ",
-                    origin: "Mon ami est venu",
-                    reading: "モン ナミ エ ヴニュ",
-                    meaning: "私の友人がやって来ました"
-                }
-            ],
-            zh: [
-                {
-                    ja: "ここでお茶を飲むの？",
-                    origin: "喝茶吗？请坐",
-                    reading: "フーツァー マー？チンズオ",
-                    meaning: "お茶を飲みますか？どうぞお座りください"
-                },
-                {
-                    ja: "これは幾らですか？",
-                    origin: "这个多少钱？",
-                    reading: "ジェイガ ドゥオサオ チエン？",
-                    meaning: "これはいくらですか？"
-                },
-                {
-                    ja: "明日も晴れですね",
-                    origin: "明天晴天很好",
-                    reading: "ミンティエン チンティエン ヘンハオ",
-                    meaning: "明日は晴れてとても良いです"
-                },
-                {
-                    ja: "美味しいラーメンを食べる",
-                    origin: "吃拉面真好吃",
-                    reading: "チー ラーミエン ジェン ハオチー",
-                    meaning: "ラーメンを食べるのはとても美味しい"
-                },
-                {
-                    ja: "兄貴は元気ですか？",
-                    origin: "你哥哥好吗？",
-                    reading: "ニー グァグァ ハオ マー？",
-                    meaning: "あなたのお兄さんは元気ですか？"
-                },
-                {
-                    ja: "謝々と言ってみよう",
-                    origin: "谢谢您的帮助",
-                    reading: "シエシエ ニン ダ バンジュー",
-                    meaning: "ご助力ありがとうございます"
-                },
-                {
-                    ja: "麻婆豆腐が辛いね",
-                    origin: "麻婆豆腐太辣了",
-                    reading: "マーボードウフ タイ ラー ラ",
-                    meaning: "麻婆豆腐がとても辛いです"
-                },
-                {
-                    ja: "北京ダックが好きです",
-                    origin: "北京烤鸭很好吃",
-                    reading: "ベイジン カオヤー ヘン ハオチー",
-                    meaning: "北京ダックはとても美味しい"
-                }
-            ],
-            it: [
-                {
-                    ja: "そうですね旦那さん",
-                    origin: "Scusi signore, prego",
-                    reading: "スクーズィ シニョーレ プレーゴ",
-                    meaning: "すみません旦那様、どうぞ"
-                },
-                {
-                    ja: "パスタが茹で上がりました",
-                    origin: "Pasta e basta, andiamo",
-                    reading: "パスタ エ バスタ アンディアーモ",
-                    meaning: "パスタがあれば十分、さあ行こう"
-                },
-                {
-                    ja: "涼しいのが好きですね",
-                    origin: "Scusi, mi dispiace",
-                    reading: "スクーズィ ミ ディスピアチェ",
-                    meaning: "すみません、申し訳ありません"
-                },
-                {
-                    ja: "カルボナーラが好きです",
-                    origin: "Carbonara squisita davvero",
-                    reading: "カルボナーラ スクイジータ ダッヴェーロ",
-                    meaning: "本当に絶品のカルボナーラ"
-                },
-                {
-                    ja: "チャオと言って手を振る",
-                    origin: "Ciao a tutti, arrivederci",
-                    reading: "チャオ ア トゥッティ アッリヴェデルチ",
-                    meaning: "みなさんこんにちは、さようなら"
-                },
-                {
-                    ja: "ピザを焼きましょうか",
-                    origin: "Pizza deliziosa e vino",
-                    reading: "ピッツァ デリツィオーザ エ ヴィーノ",
-                    meaning: "美味しいピザとワイン"
-                },
-                {
-                    ja: "グラッチェとお礼を言う",
-                    origin: "Grazie mille a tutti",
-                    reading: "グラッツィエ ミッレ ア トゥッティ",
-                    meaning: "皆さん本当にありがとうございます"
-                },
-                {
-                    ja: "ベッラと呼んでください",
-                    origin: "Bella giornata oggi",
-                    reading: "ベッラ ジョルナータ オッジ",
-                    meaning: "今日は素晴らしい良い日ですね"
-                }
-            ]
-        };
+        // 日常会話として自然な日本語文章リスト (15文字以下)
+        const PRESET_TOPICS = [
+            "明日の予定はどうですか",
+            "今日は天気がいいですね",
+            "お茶を一杯いかがですか",
+            "お疲れ様でした",
+            "ここはとても静かですね",
+            "少し休んでいきましょう",
+            "本を読むのが好きです",
+            "駅はどこにありますか",
+            "またお会いしましょう",
+            "おいしいご飯を食べたい"
+        ];
 
         const TARGET_LANGUAGES = {
             en: {
@@ -566,7 +325,7 @@
                 name: '英語 (English Accent)',
                 flag: '🇺🇸',
                 ttsCode: 'en-US',
-                hint: '英語特有のR/L音、強い強弱ストレス、音節の脱落や母音の曖昧化を意識して音読してください。'
+                hint: '英語特有のR/L音、強いストレスアクセント、音節の脱落や母音の曖昧化を意識して音読してください。'
             },
             fr: {
                 code: 'fr',
@@ -580,24 +339,22 @@
                 name: '中国語 (Chinese Accent)',
                 flag: '🇨🇳',
                 ttsCode: 'zh-CN',
-                hint: '中国語特有の明確な四声（高低トーン）、有気音・無気音のメリハリを意識して音読してください。'
+                hint: '中国語特有の明確な四声（トーン）、有気音・無気音のメリハリを意識して音読してください。'
             },
             it: {
                 code: 'it',
                 name: 'イタリア語 (Italian Accent)',
                 flag: '🇮🇹',
                 ttsCode: 'it-IT',
-                hint: 'イタリア語特有の弾むようなリズム、巻き舌のR、明瞭で伸びやかな母音で音読してください。'
+                hint: 'イタリア語特有の巻き舌のR、クリアな母音、テンポの良い陽気なリズムで音読してください。'
             }
         };
 
-        // 各言語ごとのインデックス追跡（直前と絶対に重複させないための履歴）
-        const lastIndices = { en: -1, fr: -1, zh: -1, it: -1 };
-        let currentTopicObj = null;
+        let currentText = "";
         let currentTargetLang = null;
         let selectedLangFilter = 'all';
         let topicMode = 'preset';
-        let topicCounter = 1;
+        let lastTopicIndex = -1;
         
         let isRecording = false;
         let mediaRecorder = null;
@@ -608,7 +365,6 @@
         let totalScore = 0;
         let streakCount = 0;
 
-        // Visualizer State
         let audioCtx = null;
         let analyser = null;
         let animFrameId = null;
@@ -619,16 +375,10 @@
         const langFlag = document.getElementById('langFlag');
         const langName = document.getElementById('langName');
         const charCountBadge = document.getElementById('charCountBadge');
-        const topicTextContainer = document.getElementById('topicTextContainer');
         const topicText = document.getElementById('topicText');
+        const topicTextBox = document.getElementById('topicTextBox');
         const accentHintText = document.getElementById('accentHintText');
-        const modelContainer = document.getElementById('modelContainer');
-        const topicIdBadge = document.getElementById('topicIdBadge');
-        
-        const modelPhrase = document.getElementById('modelPhrase');
-        const modelReading = document.getElementById('modelReading');
-        const modelMeaning = document.getElementById('modelMeaning');
-        const listenNativeBtn = document.getElementById('listenNativeBtn');
+
         const nextTopicBtn = document.getElementById('nextTopicBtn');
 
         const recordBtn = document.getElementById('recordBtn');
@@ -668,25 +418,21 @@
             generateNewTopic();
         };
 
-        function showToast(message, type = 'info') {
+        function showToast(message) {
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
-            const bgColor = type === 'error' ? 'bg-rose-600' : (type === 'success' ? 'bg-emerald-600' : 'bg-indigo-600');
-            const icon = type === 'error' ? 'fa-triangle-exclamation' : (type === 'success' ? 'fa-circle-check' : 'fa-circle-info');
-            
-            toast.className = `${bgColor} text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center space-x-2 text-xs transition-all transform duration-300 opacity-0 translate-y-2 pointer-events-auto z-50`;
-            toast.innerHTML = `<i class="fa-solid ${icon}"></i><span>${message}</span>`;
+            toast.className = 'bg-indigo-600/90 border border-indigo-400 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-xl backdrop-blur-md flex items-center space-x-2 transition-all duration-300 opacity-0 translate-y-2';
+            toast.innerHTML = `<i class="fa-solid fa-circle-info text-amber-300"></i><span>${message}</span>`;
             container.appendChild(toast);
-
-            requestAnimationFrame(() => {
+            
+            setTimeout(() => {
                 toast.classList.remove('opacity-0', 'translate-y-2');
-                toast.classList.add('opacity-100', 'translate-y-0');
-            });
+            }, 10);
 
             setTimeout(() => {
-                toast.classList.add('opacity-0', 'translate-y-2');
+                toast.classList.add('opacity-0', '-translate-y-2');
                 setTimeout(() => toast.remove(), 300);
-            }, 3000);
+            }, 2500);
         }
 
         function setupCanvasResolution() {
@@ -729,29 +475,12 @@
             });
         }
 
-        // Native Audio Playback
-        listenNativeBtn.addEventListener('click', () => {
-            if (!currentTopicObj || !currentTargetLang) return;
-            window.speechSynthesis.cancel();
-            
-            const utterance = new SpeechSynthesisUtterance(currentTopicObj.origin);
-            utterance.lang = currentTargetLang.ttsCode;
-            utterance.rate = 0.85;
-            utterance.pitch = 1.0;
-            window.speechSynthesis.speak(utterance);
-            showToast(`「${currentTopicObj.origin}」を${currentTargetLang.name}音声で再生中`, 'info');
-        });
-
-        nextTopicBtn.addEventListener('click', () => {
-            generateNewTopic();
-        });
-
+        nextTopicBtn.addEventListener('click', generateNewTopic);
         continueGameBtn.addEventListener('click', () => {
             resultCard.classList.add('hidden');
             generateNewTopic();
         });
 
-        // 確実にお題と空耳お手本を非重複で更新する関数
         async function generateNewTopic() {
             const langKeys = ['en', 'fr', 'zh', 'it'];
             let chosenLangKey = selectedLangFilter;
@@ -760,62 +489,39 @@
             }
             currentTargetLang = TARGET_LANGUAGES[chosenLangKey];
 
-            // お題①（言語）UI更新
             langFlag.innerText = currentTargetLang.flag;
             langName.innerText = currentTargetLang.name;
             accentHintText.innerText = `発音ヒント: ${currentTargetLang.hint}`;
 
             if (topicMode === 'preset') {
-                const topicsList = SORAMIMI_DATABASE[chosenLangKey];
-                
-                // ★ 直前のお題と絶対に被らない選択アルゴリズム
-                let newIndex;
-                if (topicsList.length > 1) {
-                    do {
-                        newIndex = Math.floor(Math.random() * topicsList.length);
-                    } while (newIndex === lastIndices[chosenLangKey]);
-                } else {
-                    newIndex = 0;
+                let newIndex = Math.floor(Math.random() * PRESET_TOPICS.length);
+                if (PRESET_TOPICS.length > 1 && newIndex === lastTopicIndex) {
+                    newIndex = (newIndex + 1) % PRESET_TOPICS.length;
                 }
-                lastIndices[chosenLangKey] = newIndex;
-                currentTopicObj = topicsList[newIndex];
+                lastTopicIndex = newIndex;
 
-                renderTopicDetails(currentTopicObj);
+                currentText = PRESET_TOPICS[newIndex];
+                renderTopic();
                 recordBtn.disabled = false;
-                statusText.innerText = `「お題①: ${currentTargetLang.name}」の発音でお題②を音読`;
-                showToast(`空耳お手本を更新しました！(#${topicCounter})`, 'success');
-                topicCounter++;
+                statusText.innerText = `「${currentTargetLang.name}」の発音でお題②を音読`;
             } else {
-                // AI生成モード
-                topicText.innerHTML = `<span class="text-base font-normal text-indigo-300 flex items-center justify-center gap-2"><i class="fa-solid fa-wand-magic-sparkles fa-spin text-indigo-400"></i> AIが新しい空耳お題とお手本を考案中...</span>`;
+                topicText.innerHTML = `<span class="text-base font-normal text-indigo-300 flex items-center justify-center gap-2"><i class="fa-solid fa-wand-magic-sparkles fa-spin text-indigo-400"></i> Geminiがお題を生成中...</span>`;
                 charCountBadge.innerText = `生成中...`;
-                modelPhrase.innerText = "生成中...";
-                modelReading.innerText = "生成中...";
-                modelMeaning.innerText = "生成中...";
                 recordBtn.disabled = true;
-                statusText.innerText = "AIがお題を作成しています...";
+                statusText.innerText = "お題生成を待機中...";
 
                 try {
                     const promptText = `
-                    あなたはお題作成AIです。
-                    ユーザーが「${currentTargetLang.name}」のアクセント・音韻っぽく発音できる「自然な文章の空耳日本語お題」を新規生成してください。
+                    日常生活で使われる、ごく自然で一般的な日本語の日常会話文章（15文字以内）を1つ生成してください。
+                    外国語単語や不自然な造語は一切含めず、純粋な日本語のみで出力してください。
 
-                    【厳格な制約】
-                    1. ja: 10〜14文字前後の自然な日本語の短い日常文（外国語単語を含めず純日本語のみ）。
-                    2. origin: 空耳の核となる「${currentTargetLang.name}」の自然なフレーズ。
-                    3. reading: originのカタカナ読み。
-                    4. meaning: originの日本語の意味。
-
-                    JSON形式のみで出力してください:
+                    出力形式（JSONのみ）:
                     {
-                        "ja": "日本語短文",
-                        "origin": "外国語フレーズ",
-                        "reading": "カタカナ読み",
-                        "meaning": "日本語訳"
+                        "text": "15文字以内の自然な日常日本語"
                     }
                     `;
 
-                    const apiKey = ""; 
+                    const apiKey = "";
                     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
 
                     const response = await fetch(apiUrl, {
@@ -827,61 +533,36 @@
                         })
                     });
 
-                    if (!response.ok) throw new Error("AI生成API未接続またはエラー");
+                    if (!response.ok) throw new Error("AI生成失敗");
 
                     const result = await response.json();
                     const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-                    const parsed = JSON.parse(jsonText);
+                    const aiObj = JSON.parse(jsonText);
 
-                    currentTopicObj = {
-                        ja: parsed.ja.slice(0, 16),
-                        origin: parsed.origin,
-                        reading: parsed.reading,
-                        meaning: parsed.meaning
-                    };
-
-                    renderTopicDetails(currentTopicObj);
+                    currentText = (aiObj.text || "今日は天気がいいですね").replace(/["'\n\.\,\!\?。、]/g, '').slice(0, 15);
+                    renderTopic();
                     recordBtn.disabled = false;
-                    statusText.innerText = `「お題①: ${currentTargetLang.name}」の発音でお題②を音読`;
-                    showToast("AIが新しいお題とお手本を生成しました！", "success");
+                    statusText.innerText = `「${currentTargetLang.name}」の発音でお題②を音読`;
 
                 } catch (err) {
-                    console.warn("AI Generation fallback to database:", err);
-                    // エラー時は非重複データベースから確実に新しいものを選択
-                    const topicsList = SORAMIMI_DATABASE[chosenLangKey];
-                    let newIndex;
-                    do {
-                        newIndex = Math.floor(Math.random() * topicsList.length);
-                    } while (newIndex === lastIndices[chosenLangKey]);
-                    lastIndices[chosenLangKey] = newIndex;
-                    currentTopicObj = topicsList[newIndex];
-
-                    renderTopicDetails(currentTopicObj);
+                    console.error("AI Topic Gen Error:", err);
+                    currentText = PRESET_TOPICS[0];
+                    renderTopic();
                     recordBtn.disabled = false;
-                    statusText.innerText = `「お題①: ${currentTargetLang.name}」の発音でお題②を音読`;
-                    showToast("新しい空耳お手本に切り替えました！", "info");
+                    statusText.innerText = `「${currentTargetLang.name}」の発音でお題②を音読`;
                 }
             }
         }
 
-        // お題・お手本のDOM反映＆発光アニメーション
-        function renderTopicDetails(topic) {
-            topicText.innerText = topic.ja;
-            charCountBadge.innerText = `${topic.ja.length}文字`;
-            
-            // 空耳お手本セクションの各項目を即時更新
-            modelPhrase.innerText = topic.origin;
-            modelReading.innerText = topic.reading;
-            modelMeaning.innerText = topic.meaning;
-            topicIdBadge.innerText = `Ver.${Math.floor(Math.random() * 90 + 10)}`;
+        function renderTopic() {
+            topicText.innerText = currentText;
+            charCountBadge.innerText = `${currentText.length}文字`;
 
-            // 視覚的フィードバック（更新されたことが確実にわかるアニメーション）
-            modelContainer.classList.remove('animate-flash-update');
-            topicTextContainer.classList.remove('animate-flash-update');
-            void modelContainer.offsetWidth; // リフロー強制
-            void topicTextContainer.offsetWidth;
-            modelContainer.classList.add('animate-flash-update');
-            topicTextContainer.classList.add('animate-flash-update');
+            topicTextBox.classList.remove('animate-flash-update');
+            void topicTextBox.offsetWidth;
+            topicTextBox.classList.add('animate-flash-update');
+
+            showToast(`お題更新: 「${currentText}」`);
         }
 
         recordBtn.addEventListener('click', toggleRecording);
@@ -926,8 +607,8 @@
                 startAudioVisualizer(stream);
 
             } catch (err) {
-                console.error("Microphone Access Error:", err);
-                showToast("マイクへのアクセス権限を許可してください。", "error");
+                console.error("Microphone Error:", err);
+                showToast("マイクへのアクセス権限が拒否されました。");
             }
         }
 
@@ -945,7 +626,7 @@
             recordBtn.classList.add('from-indigo-500', 'to-purple-600');
             pulseRing.classList.add('hidden');
             statusDot.className = "w-2.5 h-2.5 rounded-full bg-slate-600";
-            statusText.innerText = "解析中...";
+            statusText.innerText = "解析準備完了";
             statusText.className = "text-slate-300 font-medium";
         }
 
@@ -1032,27 +713,48 @@
                 const mimeType = blob.type || 'audio/webm';
 
                 const promptText = `
-                あなたはお題文章の発音・アクセント・音韻・イントネーション・声調を判定するAI審査員です。
+                あなたはお題文章の発音・アクセント・音韻・イントネーション・声調・外国人風訛りを判定するAI審査員です。
 
                 【出題情報】
                 - お題① (判定対象言語): ${currentTargetLang.name}
-                - お題② (読み上げる空耳日本語文章): "${currentTopicObj.ja}"
-                - 空耳お手本 (目指す外国語の響き): "${currentTopicObj.origin}" (${currentTopicObj.reading})
+                - お題② (読み上げる日本語文章): "${currentText}"
 
                 【判定基準】
-                ユーザーは「お題②」を「お題① (${currentTargetLang.name})」の音韻特性・訛り・声調を真似て発音しています。
-                音声の意味ではなく、発音・音韻・アクセントの再現度を評価してください。
+                1. ユーザーは上記「お題② (${currentText})」を、「お題① (${currentTargetLang.name})」のアクセント・イントネーション・発音の癖（外国人風の訛り）で音読しています。
+                2. 言葉の意味ではなく、音声の【発音・音韻・アクセント・母音/子音の出し方・声調・訛り】を審査してください。
+                3. お題①(${currentTargetLang.name})特有の発音特性（英語のストレスやR/L、フランス語の鼻濁音やイントネーション、中国語のトーン、イタリア語のリズムや母音など）がどれくらい出ているかを判定してください。
 
-                JSONフォーマットのみを返却してください：
+                以下のJSONフォーマットのみで出力してください：
                 {
-                    "is_target_language_matched": true または false,
-                    "score": 0から100の整数,
+                    "is_target_language_matched": true または false (お題①の発音・アクセントとして合格レベルか),
+                    "score": 0から100の数値 (お題①らしさの再現度・発音の完成度),
                     "recognized_text": "音声から聞き取れたテキスト",
-                    "accent_trait": "検出された発音傾向 (例: 強い${currentTargetLang.name}風アクセント, カタカナ発音など)",
-                    "detailed_feedback": "具体的な発音音韻ワンポイント指導",
-                    "score_comment": "講評コメント"
+                    "accent_trait": "検出された発音傾向 (例: 自然な${currentTargetLang.name}風アクセント, カタカナ・平坦な標準語発音 など)",
+                    "detailed_feedback": "具体的な発音音韻ワンポイントアドバイス (日本語で分かりやすく)",
+                    "score_comment": "判定に応じた評価コメント"
                 }
                 `;
+
+                const systemPrompt = "You are an expert phonetician evaluating voice audio strictly based on target language pronunciation traits and accents. Output pure JSON only.";
+
+                const payload = {
+                    contents: [
+                        {
+                            role: 'user',
+                            parts: [
+                                { text: promptText },
+                                {
+                                    inlineData: {
+                                        mimeType: mimeType,
+                                        data: base64Data
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    generationConfig: { responseMimeType: "application/json" },
+                    systemInstruction: { parts: [{ text: systemPrompt }] }
+                };
 
                 const apiKey = "";
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
@@ -1060,25 +762,15 @@
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [
-                            {
-                                role: 'user',
-                                parts: [
-                                    { text: promptText },
-                                    { inlineData: { mimeType: mimeType, data: base64Data } }
-                                ]
-                            }
-                        ],
-                        generationConfig: { responseMimeType: "application/json" }
-                    })
+                    body: JSON.stringify(payload)
                 });
 
                 if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
 
                 const result = await response.json();
                 const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (!jsonText) throw new Error("No response content");
+
+                if (!jsonText) throw new Error("No response content from Gemini API");
 
                 const evaluationData = JSON.parse(jsonText);
                 renderEvaluationResult(evaluationData);
@@ -1086,19 +778,7 @@
 
             } catch (err) {
                 console.error("Gemini Pronunciation Check Error:", err);
-                
-                // フォールバック・ローカル簡易評価シミュレーター
-                const simulatedScore = Math.floor(Math.random() * 30 + 65);
-                const mockEvaluation = {
-                    is_target_language_matched: simulatedScore >= 70,
-                    score: simulatedScore,
-                    recognized_text: currentTopicObj.ja,
-                    accent_trait: simulatedScore >= 75 ? `綺麗な${currentTargetLang.name}の音韻` : `日本語カタカナ寄りの発音`,
-                    detailed_feedback: `${currentTargetLang.hint} お手本の「${currentTopicObj.reading}」のイントネーションをより意識すると高得点につながります！`,
-                    score_comment: simulatedScore >= 75 ? "非常に素晴らしい発音の再現度です！" : "惜しい！音節のメリハリをさらに意識してみましょう。"
-                };
-                renderEvaluationResult(mockEvaluation);
-                addToHistory(mockEvaluation);
+                showToast("判定中にエラーが発生しました。");
             } finally {
                 loadingBox.classList.add('hidden');
             }
@@ -1132,10 +812,10 @@
             streakCountEl.innerText = streakCount;
             totalScoreEl.innerText = totalScore;
 
-            resOriginalText.innerText = data.recognized_text || currentTopicObj.ja;
-            resAccentTrait.innerText = data.accent_trait || "アクセント解析完了";
+            resOriginalText.innerText = data.recognized_text || "(音声認識不可)";
+            resAccentTrait.innerText = data.accent_trait || "判定不可";
             resFeedback.innerText = data.detailed_feedback || "アドバイスはありません。";
-            resScoreComment.innerText = data.score_comment || "判定完了";
+            resScoreComment.innerText = data.score_comment || "Good Job!";
 
             resultCard.classList.remove('hidden');
             resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1158,7 +838,7 @@
                             <span class="font-bold text-white">${currentTargetLang.name}</span>
                             <span class="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-purple-300 font-mono">${data.accent_trait || ''}</span>
                         </div>
-                        <p class="text-slate-400 truncate text-[11px] mt-0.5">"${currentTopicObj.ja}" (お手本: ${currentTopicObj.origin})</p>
+                        <p class="text-slate-400 truncate text-[11px] mt-0.5">"${currentText}"</p>
                     </div>
                 </div>
                 <div class="text-right flex-shrink-0">
@@ -1173,6 +853,7 @@
             historyList.innerHTML = '';
             historyList.appendChild(emptyHistory);
             emptyHistory.classList.remove('hidden');
+            showToast("履歴をクリアしました");
         });
     </script>
 </body>
