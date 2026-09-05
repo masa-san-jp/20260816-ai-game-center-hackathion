@@ -2,161 +2,181 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Hand Geometry Tetris</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI Pose Tetris</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- MediaPipe Hands for High-Speed Geometry Analysis -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+JP:wght@400;700&display=swap');
         
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
         body {
             font-family: 'Noto Sans JP', sans-serif;
-            background-color: #0b0f19;
+            background-color: #050811;
             color: #e2e8f0;
             user-select: none;
-            overflow-x: hidden;
         }
 
         .font-orbitron {
             font-family: 'Orbitron', sans-serif;
         }
 
-        /* Neon effects */
+        /* Neon UI styling */
         .neon-border {
-            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5), inset 0 0 10px rgba(59, 130, 246, 0.3);
-            border: 2px solid #3b82f6;
+            box-shadow: 0 0 14px rgba(56, 189, 248, 0.4), inset 0 0 8px rgba(56, 189, 248, 0.15);
+            border: 2px solid #0284c7;
         }
 
-        .neon-text-blue {
-            text-shadow: 0 0 8px rgba(59, 130, 246, 0.8), 0 0 20px rgba(59, 130, 246, 0.5);
+        .neon-glow-cyan {
+            text-shadow: 0 0 10px rgba(6, 182, 212, 0.8), 0 0 20px rgba(6, 182, 212, 0.4);
         }
 
-        .neon-text-pink {
-            text-shadow: 0 0 8px rgba(236, 72, 153, 0.8), 0 0 20px rgba(236, 72, 153, 0.5);
-        }
-
-        /* Countdown Overlay Animation */
-        @keyframes pulse-ring {
-            0% { transform: scale(0.95); opacity: 0.8; }
-            50% { transform: scale(1.05); opacity: 1; }
-            100% { transform: scale(0.95); opacity: 0.8; }
-        }
-
-        .countdown-active {
-            animation: pulse-ring 0.8s infinite ease-in-out;
-        }
-
-        /* Flash effect for camera capture */
+        /* Shutter flash animation */
         .flash {
-            animation: flash-animation 0.3s ease-out;
+            animation: shutterFlash 0.25s ease-out;
         }
 
-        @keyframes flash-animation {
-            0% { background-color: rgba(255, 255, 255, 0.9); }
+        @keyframes shutterFlash {
+            0% { background-color: rgba(255, 255, 255, 0.95); }
             100% { background-color: transparent; }
         }
 
-        /* Custom scrollbars */
         ::-webkit-scrollbar {
-            width: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #111827;
+            width: 4px;
         }
         ::-webkit-scrollbar-thumb {
-            background: #374151;
-            border-radius: 3px;
+            background: #334155;
+            border-radius: 2px;
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-between p-2 md:p-4">
+<body class="h-screen w-screen flex flex-col items-center justify-between p-1.5 md:p-3 overflow-hidden">
 
-    <!-- Header -->
-    <header class="w-full max-w-5xl flex justify-between items-center mb-3 px-2">
-        <div class="flex items-center gap-3">
-            <i class="fa-solid fa-shapes text-3xl text-cyan-400 animate-pulse"></i>
-            <div>
-                <h1 class="text-2xl md:text-3xl font-black font-orbitron tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-indigo-400 to-pink-500">
-                    AI HAND TETRIS
-                </h1>
-                <p class="text-xs text-slate-400">手の形（ジオメトリ）で落ちてくるブロックを決定！</p>
-            </div>
+    <!-- Top Navigation & Status Header -->
+    <header class="w-full max-w-6xl flex justify-between items-center py-1 px-3 border-b border-slate-800/80 mb-1 flex-shrink-0">
+        <div class="flex items-center gap-2">
+            <i class="fa-solid fa-hand text-xl text-cyan-400 animate-pulse"></i>
+            <h1 class="text-base md:text-xl font-black font-orbitron tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-indigo-400 to-pink-500">
+                AI POSE TETRIS
+            </h1>
+            <span class="hidden sm:inline-block text-[10px] text-cyan-300 font-bold bg-cyan-950/80 px-2 py-0.5 rounded-full border border-cyan-500/40">
+                HAND GEOMETRY
+            </span>
         </div>
         
-        <div class="flex gap-2">
-            <button id="btnSound" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all border border-slate-700">
-                <i class="fa-solid fa-volume-high text-lg" id="iconSound"></i>
+        <div class="flex gap-2 items-center">
+            <button id="btnApiKey" class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-purple-300 border border-purple-800 text-xs flex items-center gap-1.5 transition-all">
+                <i class="fa-solid fa-key text-purple-400"></i>
+                <span class="text-[11px] font-bold">API KEY</span>
+                <span id="apiKeyBadge" class="w-2 h-2 rounded-full bg-slate-600"></span>
             </button>
-            <button id="btnHelp" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all border border-slate-700">
-                <i class="fa-solid fa-circle-question text-lg"></i>
+            <button id="btnSound" class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-xs flex items-center gap-1.5 transition-all">
+                <i class="fa-solid fa-volume-high text-cyan-400" id="iconSound"></i>
+                <span class="hidden md:inline text-[11px]">SOUND</span>
+            </button>
+            <button id="btnHelp" class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-xs flex items-center gap-1.5 transition-all">
+                <i class="fa-solid fa-circle-question text-yellow-400"></i>
+                <span class="hidden md:inline text-[11px]">HELP</span>
             </button>
         </div>
     </header>
 
-    <!-- Main Content Grid -->
-    <main class="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-4 items-start flex-1">
+    <main class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-2 md:gap-3 items-center flex-1 min-h-0 py-1 overflow-y-auto lg:overflow-hidden">
         
-        <!-- Left Column: Camera & AI Status (4 cols) -->
-        <section class="lg:col-span-4 flex flex-col gap-3 h-full">
-            <!-- Camera View Box -->
-            <div class="relative bg-slate-900/90 rounded-2xl p-3 border border-slate-800 shadow-xl flex flex-col items-center">
-                <div class="w-full flex justify-between items-center mb-2 px-1">
-                    <span class="text-xs font-bold font-orbitron text-cyan-400 flex items-center gap-1.5">
-                        <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span> CAMERA INPUT
+        <!-- Left Column: Compact Camera & Geometry HUD (4 cols) -->
+        <section class="lg:col-span-4 flex flex-col justify-center gap-2 h-full min-h-0">
+            
+            <!-- AI Engine Selector Card -->
+            <div class="bg-slate-900/90 rounded-xl p-2 border border-slate-800 shadow flex-shrink-0">
+                <div class="text-[11px] font-bold text-slate-300 mb-1.5 flex items-center justify-between">
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-microchip text-cyan-400"></i> AI解析エンジン</span>
+                    <span id="speedBadge" class="text-[9px] font-bold text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-500/40">幾何学ローカル解析 (0.01s)</span>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-1.5">
+                    <button id="btnEngineLocal" class="p-1.5 rounded-lg border border-emerald-500/60 bg-emerald-950/40 text-emerald-300 font-bold text-[11px] flex flex-col items-center justify-center transition-all">
+                        <span class="flex items-center gap-1"><i class="fa-solid fa-bolt text-yellow-400"></i> 高速幾何学AI</span>
+                        <span class="text-[8px] text-slate-400">APIキー不要・ノータイム判定</span>
+                    </button>
+                    <button id="btnEngineCloud" class="p-1.5 rounded-lg border border-slate-700 bg-slate-800/40 text-slate-400 font-bold text-[11px] flex flex-col items-center justify-center transition-all hover:bg-slate-800">
+                        <span class="flex items-center gap-1"><i class="fa-solid fa-brain text-purple-400"></i> Gemini AI</span>
+                        <span class="text-[8px] text-slate-400">Gemini 3 Flash 画像判定</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-slate-900/90 rounded-xl p-2 border border-slate-800 shadow flex flex-col items-center flex-shrink-0">
+                <div class="w-full flex justify-between items-center mb-1 px-1">
+                    <span class="text-[11px] font-bold font-orbitron text-cyan-400 flex items-center gap-1.5">
+                        <span id="camPing" class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> CAMERA INPUT
                     </span>
-                    <span id="camStatus" class="text-xs text-slate-400">準備中...</span>
+                    <span id="camStatus" class="text-[10px] text-slate-400">準備中...</span>
                 </div>
 
-                <!-- Video Feed & Flash Container -->
-                <div id="cameraContainer" class="relative w-full aspect-video md:aspect-square bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center">
+                <!-- Video Viewport Container -->
+                <div id="cameraContainer" class="relative w-full aspect-video max-h-36 sm:max-h-40 bg-slate-950 rounded-lg overflow-hidden border border-slate-800 flex items-center justify-center">
                     <video id="webcam" autoplay playsinline muted class="w-full h-full object-cover transform -scale-x-100"></video>
+                    
+                    <!-- Canvas for Hand Skeleton / Geometry -->
+                    <canvas id="handCanvas" class="absolute inset-0 w-full h-full transform -scale-x-100 pointer-events-none"></canvas>
                     <canvas id="snapshotCanvas" class="hidden"></canvas>
                     
-                    <!-- Flash effect div -->
+                    <!-- Real-Time Pose / Shape HUD -->
+                    <div id="livePoseHUD" class="absolute top-1.5 left-1.5 bg-slate-900/90 backdrop-blur-md text-slate-200 text-[10px] font-bold px-2 py-0.5 rounded-lg border border-cyan-500/50 shadow flex items-center gap-1.5 z-10">
+                        <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                        <span id="livePoseName" class="text-yellow-400 font-orbitron font-extrabold text-xs">手をかざしてください</span>
+                    </div>
+
+                    <!-- Flash overlay -->
                     <div id="flashOverlay" class="absolute inset-0 pointer-events-none"></div>
 
-                    <!-- Countdown Overlay -->
-                    <div id="countdownOverlay" class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm flex flex-col items-center justify-center transition-all duration-300 opacity-0 pointer-events-none">
-                        <span id="countdownText" class="text-7xl font-black font-orbitron text-pink-500 countdown-active drop-shadow-[0_0_20px_rgba(236,72,153,0.8)]">
+                    <!-- 3-Second Countdown Overlay -->
+                    <div id="countdownOverlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center transition-all duration-200 opacity-0 pointer-events-none z-20">
+                        <span id="countdownText" class="text-5xl font-black font-orbitron text-pink-500 drop-shadow-[0_0_15px_rgba(236,72,153,0.8)]">
                             3
                         </span>
-                        <span class="text-xs font-bold text-slate-200 mt-2 bg-slate-900/80 px-3 py-1 rounded-full border border-pink-500/40">
-                            カウント0で撮影！手の形をキープして！
+                        <span class="text-[9px] font-bold text-slate-200 mt-1 bg-slate-900/80 px-2 py-0.5 rounded-full border border-pink-500/40">
+                            手の形（ポーズ）をキープ！
                         </span>
                     </div>
 
-                    <!-- Camera Placeholder/Permission Screen -->
-                    <div id="cameraPrompt" class="absolute inset-0 bg-slate-900/95 flex flex-col items-center justify-center p-4 text-center z-10">
-                        <i class="fa-solid fa-camera text-4xl text-cyan-400 mb-3"></i>
-                        <p class="text-sm font-bold text-slate-200 mb-1">カメラの許可が必要です</p>
-                        <p class="text-xs text-slate-400 mb-4">インカメラの映像からAIが手の形（ジオメトリ）を厳しく判定します</p>
-                        <button id="btnStartCamera" class="px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-sm rounded-xl shadow-lg transition-all transform active:scale-95">
-                            カメラを起動する
+                    <!-- Camera Starter Screen -->
+                    <div id="cameraPrompt" class="absolute inset-0 bg-slate-900/95 flex flex-col items-center justify-center p-2 text-center z-30">
+                        <i class="fa-solid fa-camera text-2xl text-cyan-400 mb-1"></i>
+                        <p class="text-xs font-bold text-slate-200 mb-0.5">カメラ起動</p>
+                        <button id="btnStartCamera" class="mt-1 px-4 py-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs rounded-lg shadow transition-all transform active:scale-95">
+                            カメラを許可する
                         </button>
                     </div>
                 </div>
 
-                <!-- AI Analysis Status Card -->
-                <div class="w-full mt-3 bg-slate-950/60 rounded-xl p-3 border border-slate-800/80">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-xs font-bold text-slate-400 flex items-center gap-1.5">
-                            <i class="fa-solid fa-hand-fist text-purple-400"></i> AI判定ブロック
+                <div class="w-full mt-1.5 bg-slate-950/60 rounded-lg p-1.5 border border-slate-800/80">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                            <i class="fa-solid fa-shapes text-purple-400"></i> AI判定結果
                         </span>
-                        <span id="aiLoader" class="hidden text-xs text-purple-400 font-mono animate-pulse flex items-center gap-1">
-                            <i class="fa-solid fa-spinner fa-spin"></i> AIが手の形を解析中...
+                        <span id="aiLoader" class="hidden text-[10px] text-purple-400 font-mono animate-pulse flex items-center gap-1">
+                            <i class="fa-solid fa-spinner fa-spin"></i> <span id="aiLoaderText">解析中...</span>
                         </span>
                     </div>
                     
-                    <!-- Snapshot Thumbnail & Reason -->
-                    <div class="flex gap-2.5 items-center bg-slate-900/80 p-2 rounded-lg border border-slate-800">
-                        <div class="relative w-14 h-14 bg-slate-950 rounded-lg overflow-hidden border border-slate-700 flex-shrink-0 flex items-center justify-center">
-                            <img id="snapshotPreview" class="w-full h-full object-cover hidden" alt="Captured pose" />
-                            <i id="snapshotPlaceholder" class="fa-solid fa-hand text-slate-600 text-lg"></i>
+                    <div class="flex gap-2 items-center bg-slate-900/80 p-1.5 rounded border border-slate-800">
+                        <div class="relative w-10 h-10 bg-slate-950 rounded overflow-hidden border border-slate-700 flex-shrink-0 flex items-center justify-center">
+                            <img id="snapshotPreview" class="w-full h-full object-cover hidden" alt="Captured hand geometry" />
+                            <i id="snapshotPlaceholder" class="fa-solid fa-hand text-slate-600 text-sm"></i>
                         </div>
-                        <div class="flex-1 min-h-[36px] flex flex-col justify-center">
-                            <div id="spawnedBlockBadge" class="text-xs font-bold font-orbitron text-cyan-400 mb-0.5">WAITING SHAPE...</div>
-                            <p id="aiReason" class="text-[11px] text-slate-300 italic leading-tight">
-                                手の形（ジオメトリ）を幾何学的に測定して次の落ちてくるブロックを決定します。
+                        <div class="flex-1 min-h-[28px] flex flex-col justify-center">
+                            <div id="spawnedBlockBadge" class="text-[11px] font-bold font-orbitron text-cyan-400 mb-0.5">手元待機中...</div>
+                            <p id="aiReason" class="text-[10px] text-slate-300 leading-tight">
+                                手の形をカメラに映してテトリスブロックを選択します。
                             </p>
                         </div>
                     </div>
@@ -164,97 +184,97 @@
             </div>
         </section>
 
-        <!-- Center Column: Tetris Game Canvas & Score Board (5 cols) -->
-        <section class="lg:col-span-5 flex flex-col items-center gap-3">
+        <!-- Center Column: Tetris Game Canvas & Score Board (4 cols) -->
+        <section class="lg:col-span-4 flex flex-col items-center justify-center gap-1.5 h-full min-h-0">
             <!-- Score Header Cards -->
-            <div class="w-full grid grid-cols-3 gap-2">
-                <div class="bg-slate-900/90 rounded-xl p-2.5 border border-slate-800 text-center shadow-lg">
-                    <div class="text-[10px] font-bold text-slate-400 font-orbitron">SCORE</div>
-                    <div id="scoreText" class="text-lg font-black font-orbitron text-cyan-400">0</div>
+            <div class="w-full max-w-[240px] grid grid-cols-3 gap-1.5">
+                <div class="bg-slate-900/90 rounded-lg p-1.5 border border-slate-800 text-center shadow">
+                    <div class="text-[8px] font-bold text-slate-400 font-orbitron">SCORE</div>
+                    <div id="scoreText" class="text-sm md:text-base font-black font-orbitron text-cyan-400">0</div>
                 </div>
-                <div class="bg-slate-900/90 rounded-xl p-2.5 border border-slate-800 text-center shadow-lg">
-                    <div class="text-[10px] font-bold text-slate-400 font-orbitron">LINES</div>
-                    <div id="linesText" class="text-lg font-black font-orbitron text-pink-400">0</div>
+                <div class="bg-slate-900/90 rounded-lg p-1.5 border border-slate-800 text-center shadow">
+                    <div class="text-[8px] font-bold text-slate-400 font-orbitron">LINES</div>
+                    <div id="linesText" class="text-sm md:text-base font-black font-orbitron text-pink-400">0</div>
                 </div>
-                <div class="bg-slate-900/90 rounded-xl p-2.5 border border-slate-800 text-center shadow-lg">
-                    <div class="text-[10px] font-bold text-slate-400 font-orbitron">LEVEL</div>
-                    <div id="levelText" class="text-lg font-black font-orbitron text-yellow-400">1</div>
+                <div class="bg-slate-900/90 rounded-lg p-1.5 border border-slate-800 text-center shadow">
+                    <div class="text-[8px] font-bold text-slate-400 font-orbitron">LEVEL</div>
+                    <div id="levelText" class="text-sm md:text-base font-black font-orbitron text-yellow-400">1</div>
                 </div>
             </div>
 
             <!-- Game Board Container -->
-            <div class="relative bg-slate-950 p-2 rounded-2xl border-2 border-slate-800 shadow-2xl neon-border flex justify-center items-center overflow-hidden">
-                <canvas id="tetrisCanvas" width="240" height="480" class="bg-slate-950 rounded-lg"></canvas>
+            <div class="relative bg-slate-950 p-1.5 rounded-xl border-2 border-slate-800 shadow-xl neon-border flex justify-center items-center overflow-hidden max-h-[66vh]">
+                <canvas id="tetrisCanvas" width="220" height="440" class="bg-slate-950 rounded max-h-[60vh] w-auto h-auto object-contain"></canvas>
 
                 <!-- Start / Game Over Overlay -->
-                <div id="gameOverlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20">
-                    <h2 id="overlayTitle" class="text-2xl font-black font-orbitron text-cyan-400 mb-2 neon-text-blue">
-                        AI HAND TETRIS
+                <div id="gameOverlay" class="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-4 text-center z-20">
+                    <h2 id="overlayTitle" class="text-xl font-black font-orbitron text-cyan-400 mb-1 neon-glow-cyan">
+                        AI POSE TETRIS
                     </h2>
-                    <p id="overlaySub" class="text-xs text-slate-300 mb-6 leading-relaxed">
-                        カメラの前で「手の形」を作ってブロックを操ろう！<br>
-                        スタートボタンを押すとゲームが始まります。
+                    <p id="overlaySub" class="text-[11px] text-slate-300 mb-3 leading-relaxed">
+                        カメラの前で「手の形（ポーズ）」を作ってブロックを操ろう！<br>
+                        スタートを押すと開始します。
                     </p>
-                    <button id="btnStartGame" class="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white font-bold text-sm rounded-xl shadow-lg transition-all transform hover:scale-105 active:scale-95 border border-pink-400/30 font-orbitron">
+                    <button id="btnStartGame" class="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-cyan-600 hover:from-emerald-400 hover:to-cyan-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all transform hover:scale-105 active:scale-95 border border-emerald-400/30 font-orbitron">
                         START GAME
                     </button>
                 </div>
             </div>
         </section>
 
-        <!-- Right Column: Controls Info & Pose Guide (3 cols) -->
-        <section class="lg:col-span-3 flex flex-col gap-3 h-full">
+        <!-- Right Column: Hand Geometry Guide & Controls (4 cols) -->
+        <section class="lg:col-span-4 flex flex-col justify-center gap-2 h-full min-h-0">
             
-            <!-- Pose Guide Card -->
-            <div class="bg-slate-900/90 rounded-2xl p-3.5 border border-slate-800 shadow-xl">
-                <h3 class="text-xs font-bold font-orbitron text-pink-400 mb-2.5 flex items-center gap-1.5">
-                    <i class="fa-solid fa-hand text-pink-400"></i> 手の形のコツ
+            <!-- Hand Geometry Guide Card -->
+            <div class="bg-slate-900/90 rounded-xl p-2.5 border border-slate-800 shadow">
+                <h3 class="text-[11px] font-bold font-orbitron text-pink-400 mb-1.5 flex items-center gap-1.5">
+                    <i class="fa-solid fa-hand-fist text-pink-400"></i> 手の形（ジオメトリ）ガイド
                 </h3>
-                <div class="space-y-1.5 text-[11px] text-slate-300">
+                <div class="grid grid-cols-2 lg:grid-cols-1 gap-1 text-[10px] text-slate-300">
                     <div class="flex items-center justify-between bg-slate-950/60 p-1.5 rounded border border-slate-800/80">
                         <span class="text-cyan-400 font-bold">I 型</span>
-                        <span class="text-slate-400">手を平らに閉じて、1本の長い長方形を作る</span>
-                    </div>
-                    <div class="flex items-center justify-between bg-slate-950/60 p-1.5 rounded border border-slate-800/80">
-                        <span class="text-purple-400 font-bold">T 型</span>
-                        <span class="text-slate-400">片方の手のひらを、もう片方の手首に直角に当てる（T字）</span>
+                        <span class="text-slate-400">☝️ 平らな手 / 1本指</span>
                     </div>
                     <div class="flex items-center justify-between bg-slate-950/60 p-1.5 rounded border border-slate-800/80">
                         <span class="text-yellow-400 font-bold">O 型</span>
-                        <span class="text-slate-400">手を握って「グー」を作る（四角い塊）</span>
+                        <span class="text-slate-400">✊ グー（拳） / OKサイン</span>
+                    </div>
+                    <div class="flex items-center justify-between bg-slate-950/60 p-1.5 rounded border border-slate-800/80">
+                        <span class="text-purple-400 font-bold">T 型</span>
+                        <span class="text-slate-400">🤟 3本指 / 直角T字交差</span>
                     </div>
                     <div class="flex items-center justify-between bg-slate-950/60 p-1.5 rounded border border-slate-800/80">
                         <span class="text-orange-400 font-bold">L / J 型</span>
-                        <span class="text-slate-400">親指と人差し指、または他の指でL字を形成する</span>
+                        <span class="text-slate-400">🤙 90度 L字ハンド</span>
                     </div>
                     <div class="flex items-center justify-between bg-slate-950/60 p-1.5 rounded border border-slate-800/80">
                         <span class="text-emerald-400 font-bold">S / Z 型</span>
-                        <span class="text-slate-400">手のひらをクランク状に曲げる（ジグザグ）</span>
+                        <span class="text-slate-400">✌️ チョキ / クランク曲げ</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Keyboard Instructions Box -->
-            <div class="bg-slate-900/90 rounded-2xl p-3.5 border border-slate-800 shadow-xl">
-                <h3 class="text-xs font-bold font-orbitron text-slate-300 mb-2.5 flex items-center gap-1.5">
+            <!-- Controls Info Card -->
+            <div class="bg-slate-900/90 rounded-xl p-2.5 border border-slate-800 shadow">
+                <h3 class="text-[11px] font-bold font-orbitron text-slate-300 mb-1.5 flex items-center gap-1.5">
                     <i class="fa-solid fa-keyboard text-cyan-400"></i> CONTROLS
                 </h3>
-                <div class="grid grid-cols-2 gap-2 text-[11px] text-slate-300">
-                    <div class="bg-slate-950/70 p-2 rounded-lg border border-slate-800">
-                        <div class="font-bold text-slate-400">移動</div>
-                        <div class="text-cyan-300 font-mono">← / →</div>
+                <div class="grid grid-cols-2 gap-1 text-[10px] text-slate-300">
+                    <div class="bg-slate-950/70 p-1 rounded border border-slate-800 flex justify-between items-center px-2">
+                        <span class="font-bold text-slate-400">移動</span>
+                        <span class="text-cyan-300 font-mono">← / →</span>
                     </div>
-                    <div class="bg-slate-950/70 p-2 rounded-lg border border-slate-800">
-                        <div class="font-bold text-slate-400">ソフトドロップ</div>
-                        <div class="text-cyan-300 font-mono">↓ キー</div>
+                    <div class="bg-slate-950/70 p-1 rounded border border-slate-800 flex justify-between items-center px-2">
+                        <span class="font-bold text-slate-400">ソフト落下</span>
+                        <span class="text-cyan-300 font-mono">↓</span>
                     </div>
-                    <div class="bg-slate-950/70 p-2 rounded-lg border border-slate-800">
-                        <div class="font-bold text-slate-400">ハードドロップ</div>
-                        <div class="text-cyan-300 font-mono">↑ キー</div>
+                    <div class="bg-slate-950/70 p-1 rounded border border-slate-800 flex justify-between items-center px-2">
+                        <span class="font-bold text-slate-400">即時落下</span>
+                        <span class="text-cyan-300 font-mono">↑ (DROP)</span>
                     </div>
-                    <div class="bg-slate-950/70 p-2 rounded-lg border border-slate-800">
-                        <div class="font-bold text-slate-400">左回転 / 右回転</div>
-                        <div class="text-pink-400 font-mono">Z / C キー</div>
+                    <div class="bg-slate-950/70 p-1 rounded border border-slate-800 flex justify-between items-center px-2">
+                        <span class="font-bold text-slate-400">回転</span>
+                        <span class="text-pink-400 font-mono">Z / C</span>
                     </div>
                 </div>
             </div>
@@ -262,73 +282,82 @@
         </section>
     </main>
 
-    <!-- Mobile On-Screen Controls -->
-    <div class="w-full max-w-md my-2 lg:hidden px-2">
-        <div class="bg-slate-900/90 rounded-2xl p-3 border border-slate-800 shadow-lg flex flex-col gap-2">
-            <!-- Top row: Rotation & Hard Drop -->
-            <div class="grid grid-cols-4 gap-2">
-                <button id="btnRotL" class="py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-pink-400 font-bold rounded-xl active:bg-pink-600 active:text-white transition-all flex flex-col items-center justify-center">
-                    <i class="fa-solid fa-rotate-left"></i>
-                    <span class="text-[10px] mt-0.5 font-mono">Z</span>
+    <!-- Mobile On-Screen Controller (Small screens only) -->
+    <div class="w-full max-w-md lg:hidden px-1 flex-shrink-0 mb-1">
+        <div class="bg-slate-900/90 rounded-xl p-1.5 border border-slate-800 shadow flex flex-col gap-1">
+            <div class="grid grid-cols-4 gap-1">
+                <button id="btnRotL" class="py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-pink-400 font-bold rounded-lg text-xs active:bg-pink-600 active:text-white transition-all flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-rotate-left"></i> Z
                 </button>
-                <button id="btnRotR" class="py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-pink-400 font-bold rounded-xl active:bg-pink-600 active:text-white transition-all flex flex-col items-center justify-center">
-                    <i class="fa-solid fa-rotate-right"></i>
-                    <span class="text-[10px] mt-0.5 font-mono">C</span>
+                <button id="btnRotR" class="py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-pink-400 font-bold rounded-lg text-xs active:bg-pink-600 active:text-white transition-all flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-rotate-right"></i> C
                 </button>
-                <button id="btnHardDrop" class="col-span-2 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-yellow-400 font-bold rounded-xl active:bg-yellow-600 active:text-white transition-all flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-angles-down"></i>
-                    <span class="text-xs">DROP (↑)</span>
+                <button id="btnHardDrop" class="col-span-2 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-yellow-400 font-bold rounded-lg text-xs active:bg-yellow-600 active:text-white transition-all flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-angles-down"></i> DROP (↑)
                 </button>
             </div>
-            <!-- Bottom row: Left, Down, Right -->
-            <div class="grid grid-cols-3 gap-2">
-                <button id="btnLeft" class="py-3.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-400 font-bold rounded-xl active:bg-cyan-600 active:text-white transition-all flex justify-center items-center">
-                    <i class="fa-solid fa-arrow-left text-lg"></i>
+            <div class="grid grid-cols-3 gap-1">
+                <button id="btnLeft" class="py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-400 font-bold rounded-lg active:bg-cyan-600 active:text-white transition-all flex justify-center items-center">
+                    <i class="fa-solid fa-arrow-left text-sm"></i>
                 </button>
-                <button id="btnDown" class="py-3.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-400 font-bold rounded-xl active:bg-cyan-600 active:text-white transition-all flex justify-center items-center">
-                    <i class="fa-solid fa-arrow-down text-lg"></i>
+                <button id="btnDown" class="py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-400 font-bold rounded-lg active:bg-cyan-600 active:text-white transition-all flex justify-center items-center">
+                    <i class="fa-solid fa-arrow-down text-sm"></i>
                 </button>
-                <button id="btnRight" class="py-3.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-400 font-bold rounded-xl active:bg-cyan-600 active:text-white transition-all flex justify-center items-center">
-                    <i class="fa-solid fa-arrow-right text-lg"></i>
+                <button id="btnRight" class="py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-400 font-bold rounded-lg active:bg-cyan-600 active:text-white transition-all flex justify-center items-center">
+                    <i class="fa-solid fa-arrow-right text-sm"></i>
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Instructions Modal -->
-    <div id="helpModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 max-w-md w-full shadow-2xl relative">
-            <button id="btnCloseHelp" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl">
+    <!-- API Key Modal Dialog -->
+    <div id="apiKeyModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-3 hidden">
+        <div class="bg-slate-900 border border-purple-800 rounded-xl p-4 max-w-sm w-full shadow-2xl relative">
+            <button id="btnCloseApiKey" class="absolute top-3 right-3 text-slate-400 hover:text-white text-base">
                 <i class="fa-solid fa-xmark"></i>
             </button>
-            <h3 class="text-lg font-bold font-orbitron text-cyan-400 mb-3 flex items-center gap-2">
-                <i class="fa-solid fa-circle-info"></i> ゲームルール & 遊び方
+            <h3 class="text-sm font-bold font-orbitron text-purple-400 mb-2 flex items-center gap-2">
+                <i class="fa-solid fa-key"></i> Gemini API Key 設定
             </h3>
-            <div class="text-xs text-slate-300 space-y-2.5 leading-relaxed">
-                <p><strong class="text-white">1. カメラとAIの連動:</strong><br>
-                ゲーム開始時、およびブロックが落下してボードに固定されるたびに<span class="text-pink-400 font-bold">3秒間の撮影カウントダウン</span>が始まります。</p>
-                
-                <p><strong class="text-white">2. 手の形でブロック決定:</strong><br>
-                カメラの前で「手の形」を作ってください。AIが「I, J, L, O, S, T, Z」のどのテトリスブロックに似ているかを幾何学的に判定し、<span class="text-cyan-400 font-bold">次の落下ブロック(NEXT)</span>としてセットします。</p>
-
-                <p><strong class="text-white">3. 操作方法:</strong><br>
-                • キーボード: 矢印キー（左右移動・落下）/ <span class="font-mono text-pink-300">Zキー</span>(左回転) / <span class="font-mono text-pink-300">Cキー</span>(右回転)<br>
-                • スマホ: 画面下のコントローラーボタン</p>
-
-                <p><strong class="text-white">4. 手の形のコツ:</strong><br>
-                • 平らに閉じた手: <span class="text-cyan-400 font-bold">Iブロック</span><br>
-                • 手を握ったグー: <span class="text-yellow-400 font-bold">Oブロック</span><br>
-                • 両手のひらを直角に交差: <span class="text-purple-400 font-bold">Tブロック</span><br>
-                • L字・J字を形成: <span class="text-orange-400 font-bold">L/Jブロック</span></p>
+            <p class="text-[11px] text-slate-300 mb-2 leading-relaxed">
+                Google AI Studioで取得したAPIキーを入力すると、Gemini 3 Flashによる画像認識が実行されます。
+            </p>
+            <input id="inputApiKey" type="password" placeholder="AIzaSy..." class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 mb-3 font-mono">
+            <div class="flex gap-2">
+                <button id="btnSaveApiKey" class="flex-1 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-lg transition-all">
+                    保存して有効化
+                </button>
+                <button id="btnClearApiKey" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg transition-all">
+                    クリア
+                </button>
             </div>
-            <button id="btnModalOk" class="w-full mt-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl border border-slate-700 transition-all">
+            <p id="apiKeyStatusMsg" class="text-[10px] text-slate-400 mt-2 text-center"></p>
+        </div>
+    </div>
+
+    <!-- Help Modal Dialog -->
+    <div id="helpModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 max-w-sm w-full shadow-2xl relative">
+            <button id="btnCloseHelp" class="absolute top-3 right-3 text-slate-400 hover:text-white text-base">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <h3 class="text-sm font-bold font-orbitron text-cyan-400 mb-2 flex items-center gap-2">
+                <i class="fa-solid fa-circle-info"></i> AI POSE TETRIS 遊び方
+            </h3>
+            <div class="text-[11px] text-slate-300 space-y-2 leading-relaxed">
+                <p>1. ブロック落下固定後、<strong class="text-pink-400 font-bold">3秒のカウントダウン</strong>が始まります。</p>
+                <p>2. カメラの前で「平らな手」「グー」「3本指」「L字」「チョキ」などの形を作ってキープします。</p>
+                <p>3. AIが手の形（ジオメトリ）を測定し、NEXTブロックを決定します。</p>
+                <p>4. <strong>幾何学AIモード</strong>: キー不要で瞬時に判定。<br><strong>Gemini AIモード</strong>: 右上のAPI KEYからキーを設定するとクラウド画像解析を実行。</p>
+            </div>
+            <button id="btnModalOk" class="w-full mt-3 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-lg border border-slate-700">
                 了解！
             </button>
         </div>
     </div>
 
     <script>
-        // Sound System (Web Audio API)
+        /* Web Audio Synthesizer */
         class SoundEffects {
             constructor() {
                 this.ctx = null;
@@ -357,104 +386,46 @@
                 } catch(e) {}
             }
 
-            playMove() { this.playBeep(220, 0.05, 'triangle'); }
-            playRotate() { this.playBeep(440, 0.08, 'sine'); }
-            playDrop() { this.playBeep(150, 0.1, 'sawtooth'); }
+            playMove() { this.playBeep(220, 0.04, 'triangle'); }
+            playRotate() { this.playBeep(440, 0.06, 'sine'); }
+            playDrop() { this.playBeep(150, 0.08, 'sawtooth'); }
             playClear() {
                 if (this.muted || !this.ctx) return;
                 [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
-                    setTimeout(() => this.playBeep(freq, 0.12, 'square'), idx * 60);
+                    setTimeout(() => this.playBeep(freq, 0.1, 'square'), idx * 50);
                 });
             }
             playShutter() {
-                this.playBeep(800, 0.05, 'noise');
-                setTimeout(() => this.playBeep(1200, 0.08, 'sine'), 50);
+                this.playBeep(800, 0.04, 'sine');
+                setTimeout(() => this.playBeep(1200, 0.06, 'triangle'), 40);
             }
             playGameOver() {
                 if (this.muted || !this.ctx) return;
                 [300, 250, 200, 150].forEach((freq, idx) => {
-                    setTimeout(() => this.playBeep(freq, 0.15, 'sawtooth'), idx * 120);
+                    setTimeout(() => this.playBeep(freq, 0.12, 'sawtooth'), idx * 100);
                 });
             }
         }
 
         const sound = new SoundEffects();
 
-        // Tetris Piece Colors & Shapes
         const PIECES = {
-            I: {
-                color: '#00f0f0',
-                shadow: 'rgba(0, 240, 240, 0.6)',
-                shape: [
-                    [0,0,0,0],
-                    [1,1,1,1],
-                    [0,0,0,0],
-                    [0,0,0,0]
-                ]
-            },
-            J: {
-                color: '#0000f0',
-                shadow: 'rgba(0, 0, 240, 0.6)',
-                shape: [
-                    [1,0,0],
-                    [1,1,1],
-                    [0,0,0]
-                ]
-            },
-            L: {
-                color: '#f0a000',
-                shadow: 'rgba(240, 160, 0, 0.6)',
-                shape: [
-                    [0,0,1],
-                    [1,1,1],
-                    [0,0,0]
-                ]
-            },
-            O: {
-                color: '#f0f000',
-                shadow: 'rgba(240, 240, 0, 0.6)',
-                shape: [
-                    [1,1],
-                    [1,1]
-                ]
-            },
-            S: {
-                color: '#00f000',
-                shadow: 'rgba(0, 240, 0, 0.6)',
-                shape: [
-                    [0,1,1],
-                    [1,1,0],
-                    [0,0,0]
-                ]
-            },
-            T: {
-                color: '#a000f0',
-                shadow: 'rgba(160, 0, 240, 0.6)',
-                shape: [
-                    [0,1,0],
-                    [1,1,1],
-                    [0,0,0]
-                ]
-            },
-            Z: {
-                color: '#f00000',
-                shadow: 'rgba(240, 0, 0, 0.6)',
-                shape: [
-                    [1,1,0],
-                    [0,1,1],
-                    [0,0,0]
-                ]
-            }
+            I: { color: '#00f0f0', shape: [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]] },
+            J: { color: '#0000f0', shape: [[1,0,0],[1,1,1],[0,0,0]] },
+            L: { color: '#f0a000', shape: [[0,0,1],[1,1,1],[0,0,0]] },
+            O: { color: '#f0f000', shape: [[1,1],[1,1]] },
+            S: { color: '#00f000', shape: [[0,1,1],[1,1,0],[0,0,0]] },
+            T: { color: '#a000f0', shape: [[0,1,0],[1,1,1],[0,0,0]] },
+            Z: { color: '#f00000', shape: [[1,1,0],[0,1,1],[0,0,0]] }
         };
 
         const PIECE_KEYS = ['I', 'J', 'L', 'O', 'S', 'T', 'Z'];
-
         const COLS = 10;
         const ROWS = 20;
-        const BLOCK_SIZE = 24;
 
         const tetrisCanvas = document.getElementById('tetrisCanvas');
         const tetrisCtx = tetrisCanvas.getContext('2d');
+        const BLOCK_SIZE = tetrisCanvas.width / COLS;
 
         let board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
         let score = 0;
@@ -466,13 +437,18 @@
         let isAiAnalyzing = false;
 
         let currentPiece = null;
-
         let dropCounter = 0;
-        let dropInterval = 1000; // ms
+        let dropInterval = 1000;
         let lastTime = 0;
         let animationFrameId = null;
 
+        let aiEngineMode = 'local';
+        let userApiKey = '';
+        const COUNTDOWN_SECONDS = 3;
+
         const video = document.getElementById('webcam');
+        const handCanvas = document.getElementById('handCanvas');
+        const handCtx = handCanvas.getContext('2d');
         const snapshotCanvas = document.getElementById('snapshotCanvas');
         const cameraPrompt = document.getElementById('cameraPrompt');
         const camStatus = document.getElementById('camStatus');
@@ -480,12 +456,25 @@
         const countdownText = document.getElementById('countdownText');
         const flashOverlay = document.getElementById('flashOverlay');
         const aiLoader = document.getElementById('aiLoader');
+        const aiLoaderText = document.getElementById('aiLoaderText');
         const aiReason = document.getElementById('aiReason');
         const spawnedBlockBadge = document.getElementById('spawnedBlockBadge');
+        const livePoseName = document.getElementById('livePoseName');
+        const apiKeyBadge = document.getElementById('apiKeyBadge');
 
         let cameraStream = null;
+        let handsDetector = null;
+        let latestHandLandmarks = null;
 
-        async function initCamera() {
+        function updateApiKeyUI() {
+            if (userApiKey && userApiKey.trim() !== '') {
+                apiKeyBadge.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+            } else {
+                apiKeyBadge.className = 'w-2 h-2 rounded-full bg-slate-600';
+            }
+        }
+
+        async function initCameraAndHands() {
             try {
                 camStatus.textContent = '起動中...';
                 cameraStream = await navigator.mediaDevices.getUserMedia({
@@ -495,80 +484,194 @@
                 video.srcObject = cameraStream;
                 cameraPrompt.classList.add('hidden');
                 camStatus.textContent = 'ON';
-                camStatus.className = 'text-xs text-emerald-400 font-bold';
+                camStatus.className = 'text-[10px] text-emerald-400 font-bold';
+
+                if (window.Hands) {
+                    handsDetector = new window.Hands({
+                        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+                    });
+                    handsDetector.setOptions({
+                        maxNumHands: 1,
+                        modelComplexity: 1,
+                        minDetectionConfidence: 0.6,
+                        minTrackingConfidence: 0.6
+                    });
+                    handsDetector.onResults(onHandResults);
+
+                    const processFrame = async () => {
+                        if (video.readyState >= 2) {
+                            await handsDetector.send({ image: video });
+                        }
+                        requestAnimationFrame(processFrame);
+                    };
+                    processFrame();
+                }
             } catch (err) {
-                console.warn('Camera access denied or error:', err);
-                camStatus.textContent = 'OFF (ランダム動作)';
-                camStatus.className = 'text-xs text-amber-400';
+                console.warn('Camera/Hands init failed:', err);
+                camStatus.textContent = 'OFF (ランダム)';
+                camStatus.className = 'text-[10px] text-amber-400';
                 cameraPrompt.innerHTML = `
-                    <i class="fa-solid fa-camera-slash text-3xl text-amber-400 mb-2"></i>
-                    <p class="text-xs font-bold text-slate-300">カメラが利用できません</p>
-                    <p class="text-[10px] text-slate-400">ランダムピース生成モードでプレイできます</p>
+                    <i class="fa-solid fa-camera-slash text-2xl text-amber-400 mb-1"></i>
+                    <p class="text-xs font-bold text-slate-300">カメラOFF</p>
+                    <p class="text-[9px] text-slate-400">ランダムモードでプレイ可能</p>
                 `;
             }
         }
 
-        // Start 3-second Countdown & Capture Image at 0 -> AI -> Spawn Piece directly
-        async function runPoseCaptureAndSpawnFlow() {
-            currentPiece = null; // Clear active piece during countdown/AI process
+        function onHandResults(results) {
+            handCanvas.width = video.videoWidth || 320;
+            handCanvas.height = video.videoHeight || 240;
+            handCtx.clearRect(0, 0, handCanvas.width, handCanvas.height);
 
-            if (!cameraStream) {
-                // Fallback if camera is unavailable
-                const randomKey = getRandomPieceKey();
-                aiReason.textContent = "カメラオフのため、ランダムでピースを選択しました。";
-                spawnPiece(randomKey);
-                return;
-            }
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                latestHandLandmarks = results.multiHandLandmarks[0];
 
-            isCountingDown = true;
-            countdownOverlay.classList.remove('opacity-0', 'pointer-events-none');
-            let count = 3;
-            countdownText.textContent = count;
-            sound.playBeep(600, 0.1);
+                const connections = [
+                    [0,1],[1,2],[2,3],[3,4],
+                    [0,5],[5,6],[6,7],[7,8],
+                    [5,9],[9,10],[10,11],[11,12],
+                    [9,13],[13,14],[14,15],[15,16],
+                    [13,17],[17,18],[18,19],[19,20],[0,17]
+                ];
 
-            await new Promise((resolve) => {
-                const timer = setInterval(() => {
-                    count--;
-                    if (count > 0) {
-                        countdownText.textContent = count;
-                        sound.playBeep(600, 0.1);
-                    } else {
-                        clearInterval(timer);
-                        countdownOverlay.classList.add('opacity-0', 'pointer-events-none');
-                        isCountingDown = false;
-                        
-                        // Flash effect & Shutter sound right at 0
-                        flashOverlay.classList.add('flash');
-                        sound.playShutter();
-                        setTimeout(() => flashOverlay.classList.remove('flash'), 300);
+                handCtx.strokeStyle = '#00f0f0';
+                handCtx.lineWidth = 2.5;
+                handCtx.shadowColor = '#00f0f0';
+                handCtx.shadowBlur = 6;
 
-                        resolve();
+                connections.forEach(([i, j]) => {
+                    const lm1 = latestHandLandmarks[i];
+                    const lm2 = latestHandLandmarks[j];
+                    if (lm1 && lm2) {
+                        handCtx.beginPath();
+                        handCtx.moveTo(lm1.x * handCanvas.width, lm1.y * handCanvas.height);
+                        handCtx.lineTo(lm2.x * handCanvas.width, lm2.y * handCanvas.height);
+                        handCtx.stroke();
                     }
-                }, 1000);
-            });
+                });
 
-            // Capture frame exactly at zero
-            const base64Image = captureCameraFrame();
-            
-            // Send to Gemini AI and await result before spawning next piece
-            const determinedPieceKey = await analyzeImageWithGemini(base64Image);
-            
-            // Spawn determined block into tetris board
-            spawnPiece(determinedPieceKey);
+                latestHandLandmarks.forEach(lm => {
+                    handCtx.beginPath();
+                    handCtx.arc(lm.x * handCanvas.width, lm.y * handCanvas.height, 3, 0, 2 * Math.PI);
+                    handCtx.fillStyle = '#ec4899';
+                    handCtx.shadowColor = '#ec4899';
+                    handCtx.shadowBlur = 8;
+                    handCtx.fill();
+                });
+
+                const currentLocalGesture = calculateHandGestureGeometry(latestHandLandmarks);
+                if (livePoseName) {
+                    livePoseName.textContent = `${currentLocalGesture.piece} 型 (${currentLocalGesture.name})`;
+                }
+            } else {
+                latestHandLandmarks = null;
+                if (livePoseName) {
+                    livePoseName.textContent = "手をかざしてください";
+                }
+            }
         }
 
-        function captureCameraFrame() {
-            snapshotCanvas.width = video.videoWidth || 320;
-            snapshotCanvas.height = video.videoHeight || 240;
+        function calculateHandGestureGeometry(landmarks) {
+            if (!landmarks || landmarks.length < 21) {
+                return { piece: getRandomPieceKey(), name: "未検出", reason: "カメラに手をかざしてください" };
+            }
+
+            const wrist = landmarks[0];
+            const dist = (p1, p2) => Math.hypot(p1.x - p2.x, p1.y - p2.y);
+
+            const thumbOpen = dist(landmarks[4], landmarks[17]) > dist(landmarks[3], landmarks[17]) * 1.2;
+            const indexOpen = dist(landmarks[8], wrist) > dist(landmarks[6], wrist);
+            const middleOpen = dist(landmarks[12], wrist) > dist(landmarks[10], wrist);
+            const ringOpen = dist(landmarks[16], wrist) > dist(landmarks[14], wrist);
+            const pinkyOpen = dist(landmarks[20], wrist) > dist(landmarks[18], wrist);
+
+            const numFingersUp = (indexOpen ? 1 : 0) + (middleOpen ? 1 : 0) + (ringOpen ? 1 : 0) + (pinkyOpen ? 1 : 0);
+
+            const thumbIndexDist = dist(landmarks[4], landmarks[8]);
+            const handSize = dist(landmarks[0], landmarks[9]) || 0.2;
+            const isOkSign = (thumbIndexDist < handSize * 0.35) && (middleOpen || ringOpen);
+
+            if (isOkSign) {
+                return { piece: "O", name: "OKサイン", reason: "🎯 [幾何学AI] 指先を丸めたOKサイン → O型" };
+            }
+            if (!indexOpen && !middleOpen && !ringOpen && !pinkyOpen) {
+                return { piece: "O", name: "グー(拳)", reason: "🎯 [幾何学AI] 握り拳（四角） → O型" };
+            }
+            if (indexOpen && !middleOpen && !ringOpen && !pinkyOpen) {
+                return { piece: "I", name: "1本指/平ら", reason: "🎯 [幾何学AI] 人差し指/平手 → I型" };
+            }
+            if (indexOpen && middleOpen && !ringOpen && !pinkyOpen) {
+                const indexMiddleSpread = dist(landmarks[8], landmarks[12]);
+                if (indexMiddleSpread > handSize * 0.25) {
+                    return { piece: "S", name: "ピース/チョキ", reason: "🎯 [幾何学AI] チョキ開き → S型" };
+                }
+                return { piece: "Z", name: "並び2本指", reason: "🎯 [幾何学AI] 並んだ2本指 → Z型" };
+            }
+            if (indexOpen && thumbOpen && !middleOpen && !ringOpen && !pinkyOpen) {
+                return { piece: "L", name: "L字サイン", reason: "🎯 [幾何学AI] 90度L字ポーズ → L型" };
+            }
+            if (numFingersUp === 3 || (indexOpen && middleOpen && thumbOpen && !ringOpen && !pinkyOpen)) {
+                return { piece: "T", name: "3本指", reason: "🎯 [幾何学AI] 3本指T字ポーズ → T型" };
+            }
+            if (numFingersUp >= 4) {
+                return { piece: "Z", name: "パー(全開)", reason: "🎯 [幾何学AI] 手のひら全開 → Z型" };
+            }
+
+            return { piece: "I", name: "指先検出", reason: "🎯 [幾何学AI] 手指角度解析 → I型" };
+        }
+
+        function captureOptimizedFrame(targetSize = 256) {
+            if (!video || !video.videoWidth) return "";
+
+            snapshotCanvas.width = targetSize;
+            snapshotCanvas.height = targetSize;
             const ctx = snapshotCanvas.getContext('2d');
-            // Mirror image horizontally to match webcam display
-            ctx.translate(snapshotCanvas.width, 0);
+
+            ctx.save();
+            ctx.translate(targetSize, 0);
             ctx.scale(-1, 1);
-            ctx.drawImage(video, 0, 0, snapshotCanvas.width, snapshotCanvas.height);
-            
-            const dataUrl = snapshotCanvas.toDataURL('image/jpeg', 0.85);
-            
-            // Show preview thumbnail in AI status card
+
+            const vw = video.videoWidth;
+            const vh = video.videoHeight;
+            const minDim = Math.min(vw, vh);
+            const sx = (vw - minDim) / 2;
+            const sy = (vh - minDim) / 2;
+
+            ctx.drawImage(video, sx, sy, minDim, minDim, 0, 0, targetSize, targetSize);
+            ctx.restore();
+
+            if (latestHandLandmarks) {
+                const scale = targetSize / minDim;
+                ctx.save();
+                ctx.strokeStyle = '#00ffff';
+                ctx.lineWidth = 3;
+
+                const connections = [
+                    [0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
+                    [5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],
+                    [13,17],[17,18],[18,19],[19,20],[0,17]
+                ];
+
+                connections.forEach(([i, j]) => {
+                    const lm1 = latestHandLandmarks[i];
+                    const lm2 = latestHandLandmarks[j];
+                    if (lm1 && lm2) {
+                        const x1 = targetSize - ((lm1.x * vw - sx) * scale);
+                        const y1 = (lm1.y * vh - sy) * scale;
+                        const x2 = targetSize - ((lm2.x * vw - sx) * scale);
+                        const y2 = (lm2.y * vh - sy) * scale;
+
+                        ctx.beginPath();
+                        ctx.moveTo(x1, y1);
+                        ctx.lineTo(x2, y2);
+                        ctx.stroke();
+                    }
+                });
+                ctx.restore();
+            }
+
+            const dataUrl = snapshotCanvas.toDataURL('image/jpeg', 0.80);
+
             const previewImg = document.getElementById('snapshotPreview');
             const placeholderIcon = document.getElementById('snapshotPlaceholder');
             if (previewImg && placeholderIcon) {
@@ -577,42 +680,112 @@
                 placeholderIcon.classList.add('hidden');
             }
 
-            return dataUrl.split(',')[1];
+            return dataUrl.split(',')[1] || "";
         }
 
-        async function analyzeImageWithGemini(base64Image) {
+        async function runPoseCaptureAndSpawnFlow() {
+            currentPiece = null;
+
+            if (!cameraStream) {
+                const randomKey = getRandomPieceKey();
+                aiReason.textContent = "カメラOFFのためランダム生成";
+                spawnPiece(randomKey);
+                return;
+            }
+
+            isCountingDown = true;
+            countdownOverlay.classList.remove('opacity-0', 'pointer-events-none');
+            let count = COUNTDOWN_SECONDS;
+            countdownText.textContent = count;
+            sound.playBeep(600, 0.08);
+
+            await new Promise((resolve) => {
+                const timer = setInterval(() => {
+                    count--;
+                    if (count > 0) {
+                        countdownText.textContent = count;
+                        sound.playBeep(600, 0.08);
+                    } else {
+                        clearInterval(timer);
+                        countdownOverlay.classList.add('opacity-0', 'pointer-events-none');
+                        isCountingDown = false;
+                        resolve();
+                    }
+                }, 1000);
+            });
+
+            flashOverlay.classList.add('flash');
+            sound.playShutter();
+            setTimeout(() => flashOverlay.classList.remove('flash'), 200);
+
+            let determinedPieceKey = "I";
+
+            if (aiEngineMode === 'local') {
+                isAiAnalyzing = true;
+                aiLoader.classList.remove('hidden');
+                aiLoaderText.textContent = "幾何学測定中...";
+                
+                const result = calculateHandGestureGeometry(latestHandLandmarks);
+                determinedPieceKey = result.piece;
+                
+                captureOptimizedFrame(256);
+                
+                aiReason.textContent = result.reason;
+                spawnedBlockBadge.textContent = `${determinedPieceKey} BLOCK 出現！`;
+                
+                isAiAnalyzing = false;
+                aiLoader.classList.add('hidden');
+            } else {
+                const base64Image = captureOptimizedFrame(256);
+                determinedPieceKey = await analyzeHandWithGemini(base64Image);
+            }
+
+            spawnPiece(determinedPieceKey);
+        }
+
+        async function analyzeHandWithGemini(base64Image) {
             isAiAnalyzing = true;
             aiLoader.classList.remove('hidden');
+            aiLoaderText.textContent = "Gemini 3 Flash 画像解析中...";
             spawnedBlockBadge.textContent = "AI解析中...";
 
-            const systemPrompt = `You are an extremely strict, ultra-precise referee and posture analyst for "Pose Tetris".
-Your sole responsibility is to strictly evaluate the geometry of the user's hand and palm in the camera photo and categorize it with High Precision into EXACTLY ONE Tetris piece (I, J, L, O, S, T, Z).
+            const geom = calculateHandGestureGeometry(latestHandLandmarks);
 
-STRICT GEOMETRIC CRITERIA (HAND):
-- "I": A tightly closed, flat palm forming a single straight rectangle (like the letter I).
-- "T": One flat palm crossed at right angles onto the wrist of the other hand, forming a precise 'T' shape.
-- "O": A closed fist or tightly cupped hand, forming a square/blocky mass.
-- "L": Forming a crisp 90-degree right angle 'L' using the thumb and index finger, or other fingers.
-- "J": Mirror image of 'L', opposite hand forming a 90-degree right angle 'L'.
-- "S": A cranked or zig-zag shaped palm, with the fingers and palm bent in a staggered crank shape.
-- "Z": Mirror image of 'S', the opposite cranked zig-zag shape.
+            const effectiveKey = (userApiKey && userApiKey.trim() !== '') ? userApiKey.trim() : "";
+            
+            if (!effectiveKey) {
+                isAiAnalyzing = false;
+                aiLoader.classList.add('hidden');
+                aiReason.innerHTML = `<span class="text-amber-400 font-bold">⚠️ APIキー未設定</span>: 右上「API KEY」から設定してください。幾何学判定を使用します。`;
+                spawnedBlockBadge.textContent = `${geom.piece} BLOCK 出現！`;
+                return geom.piece;
+            }
 
-CRITICAL EVALUATION INSTRUCTIONS:
-1. Measure the geometric angles of the palm and fingers strictly to differentiate between closed fist (O), flat palm (I), and 'T' shape.
-2. If hand geometry is ambiguous, choose closest piece and state defect in reason.
-3. Return valid JSON.
-4. "reason": Short strict comment in Japanese (max 22 characters) like "グーで四角判定！綺麗なO型" or "少し開いていますがI型判定".`;
+            const systemPrompt = `You are an expert judge for Hand Pose Tetris.
+Analyze the user's hand image and classify it into EXACTLY ONE piece:
+- "I": 1 finger up or straight flat hand.
+- "O": Closed fist or OK sign.
+- "T": 3 fingers up or perpendicular T-cross.
+- "L": L-shape (thumb & index finger).
+- "J": Reverse L or Shaka sign.
+- "S": Peace sign / 2 fingers spread.
+- "Z": Open palm (5 fingers) or cranked shape.
+
+Reference estimation from geometric detector: ${geom.piece} (${geom.name})
+
+Respond ONLY with valid JSON having 'piece' and 'reason' (Japanese, max 25 chars).`;
 
             const payload = {
                 contents: [{
                     role: "user",
                     parts: [
-                        { text: "画像の「手の形（ジオメトリ）」を幾何学的に測定し、落ちてくるテトリスブロック(I, J, L, O, S, T, Z)を判定してください。" },
+                        { text: "手元の手の形（ジオメトリ）を幾何学判定してください。" },
                         { inlineData: { mimeType: "image/jpeg", data: base64Image } }
                     ]
                 }],
                 generationConfig: {
                     responseMimeType: "application/json",
+                    maxOutputTokens: 120,
                     responseSchema: {
                         type: "OBJECT",
                         properties: {
@@ -625,10 +798,9 @@ CRITICAL EVALUATION INSTRUCTIONS:
                 systemInstruction: { parts: [{ text: systemPrompt }] }
             };
 
-            const apiKey = ""; // Canvas runtime automatically supplies key when empty
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${effectiveKey}`;
 
-            let selectedPiece = getRandomPieceKey();
+            let selectedPiece = geom.piece || getRandomPieceKey();
 
             try {
                 const res = await fetch(apiUrl, {
@@ -637,6 +809,12 @@ CRITICAL EVALUATION INSTRUCTIONS:
                     body: JSON.stringify(payload)
                 });
 
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    const errMsg = errData.error?.message || `HTTP ${res.status}`;
+                    throw new Error(errMsg);
+                }
+
                 const data = await res.json();
                 const textResult = data.candidates?.[0]?.content?.parts?.[0]?.text;
                 
@@ -644,12 +822,12 @@ CRITICAL EVALUATION INSTRUCTIONS:
                     const parsed = JSON.parse(textResult);
                     if (PIECES[parsed.piece]) {
                         selectedPiece = parsed.piece;
-                        aiReason.textContent = parsed.reason || `判定結果: ${selectedPiece}ブロック`;
+                        aiReason.innerHTML = `<span class="text-purple-400 font-bold">[Gemini]</span> ${parsed.reason}`;
                     }
                 }
             } catch (err) {
                 console.error('Gemini API Error:', err);
-                aiReason.textContent = "判定エラー。ランダムなブロックを生成しました。";
+                aiReason.innerHTML = `<span class="text-rose-400 font-bold">Geminiエラー</span>: ${err.message.substring(0, 35)}... (${geom.piece}で代行)`;
             } finally {
                 isAiAnalyzing = false;
                 aiLoader.classList.add('hidden');
@@ -669,7 +847,6 @@ CRITICAL EVALUATION INSTRUCTIONS:
                 key: key,
                 matrix: p.shape.map(row => [...row]),
                 color: p.color,
-                shadow: p.shadow,
                 x: Math.floor(COLS / 2) - Math.ceil(p.shape[0].length / 2),
                 y: 0
             };
@@ -678,12 +855,11 @@ CRITICAL EVALUATION INSTRUCTIONS:
         function spawnPiece(pieceKey) {
             currentPiece = createPiece(pieceKey);
 
-            // Collision check on spawn (Game Over)
             if (collide(board, currentPiece)) {
                 gameOver = true;
                 gameRunning = false;
                 sound.playGameOver();
-                showOverlay("GAME OVER", `Final Score: ${score}<br>Restartボタンで再挑戦！`);
+                showOverlay("GAME OVER", `Final Score: ${score}<br>RESTARTで再挑戦！`);
             }
         }
 
@@ -693,9 +869,9 @@ CRITICAL EVALUATION INSTRUCTIONS:
             for (let y = 0; y < N; y++) {
                 for (let x = 0; x < N; x++) {
                     if (dir > 0) {
-                        result[x][N - 1 - y] = matrix[y][x]; // Clockwise (C)
+                        result[x][N - 1 - y] = matrix[y][x];
                     } else {
-                        result[N - 1 - x][y] = matrix[y][x]; // Counter-clockwise (Z)
+                        result[N - 1 - x][y] = matrix[y][x];
                     }
                 }
             }
@@ -750,7 +926,6 @@ CRITICAL EVALUATION INSTRUCTIONS:
                 sound.playDrop();
                 clearLines();
 
-                // Lock block & trigger countdown -> capture -> AI -> next block spawn
                 if (gameRunning) {
                     await runPoseCaptureAndSpawnFlow();
                 }
@@ -768,7 +943,6 @@ CRITICAL EVALUATION INSTRUCTIONS:
             sound.playDrop();
             clearLines();
 
-            // Lock block & trigger countdown -> capture -> AI -> next block spawn
             if (gameRunning) {
                 await runPoseCaptureAndSpawnFlow();
             }
@@ -838,23 +1012,22 @@ CRITICAL EVALUATION INSTRUCTIONS:
         function drawBlock(ctx, x, y, color, size = BLOCK_SIZE) {
             ctx.fillStyle = color;
             ctx.shadowColor = color;
-            ctx.shadowBlur = 8;
+            ctx.shadowBlur = 6;
             ctx.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
 
             ctx.shadowBlur = 0;
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-            ctx.fillRect(x * size + 1, y * size + 1, size - 2, 3);
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
-            ctx.fillRect(x * size + 1, (y + 1) * size - 4, size - 2, 3);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.fillRect(x * size + 1, y * size + 1, size - 2, 2);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fillRect(x * size + 1, (y + 1) * size - 3, size - 2, 2);
         }
 
         function drawBoard() {
             tetrisCtx.fillStyle = '#030712';
             tetrisCtx.fillRect(0, 0, tetrisCanvas.width, tetrisCanvas.height);
 
-            // Grid lines
-            tetrisCtx.strokeStyle = '#1e293b';
-            tetrisCtx.lineWidth = 0.5;
+            tetrisCtx.strokeStyle = '#111827';
+            tetrisCtx.lineWidth = 1;
             for (let x = 0; x <= COLS; x++) {
                 tetrisCtx.beginPath();
                 tetrisCtx.moveTo(x * BLOCK_SIZE, 0);
@@ -868,7 +1041,6 @@ CRITICAL EVALUATION INSTRUCTIONS:
                 tetrisCtx.stroke();
             }
 
-            // Draw landed blocks
             for (let y = 0; y < ROWS; y++) {
                 for (let x = 0; x < COLS; x++) {
                     if (board[y][x] !== 0) {
@@ -877,7 +1049,6 @@ CRITICAL EVALUATION INSTRUCTIONS:
                 }
             }
 
-            // Draw ghost piece
             if (currentPiece && !isCountingDown && !isAiAnalyzing) {
                 const ghost = { ...currentPiece, y: currentPiece.y };
                 while (!collide(board, ghost)) {
@@ -901,7 +1072,6 @@ CRITICAL EVALUATION INSTRUCTIONS:
                 });
             }
 
-            // Draw active piece
             if (currentPiece && !isCountingDown && !isAiAnalyzing) {
                 currentPiece.matrix.forEach((row, y) => {
                     row.forEach((value, x) => {
@@ -948,7 +1118,6 @@ CRITICAL EVALUATION INSTRUCTIONS:
                 update();
             }
 
-            // Start first capture & spawn flow
             await runPoseCaptureAndSpawnFlow();
         }
 
@@ -963,37 +1132,67 @@ CRITICAL EVALUATION INSTRUCTIONS:
             document.getElementById('gameOverlay').classList.add('hidden');
         }
 
-        // Keyboard Input handling (4 directions, Z, C)
+        const btnLocal = document.getElementById('btnEngineLocal');
+        const btnCloud = document.getElementById('btnEngineCloud');
+        const speedBadge = document.getElementById('speedBadge');
+
+        btnLocal?.addEventListener('click', () => {
+            aiEngineMode = 'local';
+            btnLocal.className = "p-1.5 rounded-lg border border-emerald-500/60 bg-emerald-950/40 text-emerald-300 font-bold text-[11px] flex flex-col items-center justify-center transition-all";
+            btnCloud.className = "p-1.5 rounded-lg border border-slate-700 bg-slate-800/40 text-slate-400 font-bold text-[11px] flex flex-col items-center justify-center transition-all hover:bg-slate-800";
+            speedBadge.textContent = "幾何学ローカル解析 (0.01s)";
+            speedBadge.className = "text-[9px] font-bold text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-500/40";
+        });
+
+        btnCloud?.addEventListener('click', () => {
+            aiEngineMode = 'cloud';
+            btnCloud.className = "p-1.5 rounded-lg border border-purple-500/60 bg-purple-950/40 text-purple-300 font-bold text-[11px] flex flex-col items-center justify-center transition-all";
+            btnLocal.className = "p-1.5 rounded-lg border border-slate-700 bg-slate-800/40 text-slate-400 font-bold text-[11px] flex flex-col items-center justify-center transition-all hover:bg-slate-800";
+            speedBadge.textContent = "Gemini 3 Flash 画像判定";
+            speedBadge.className = "text-[9px] font-bold text-purple-400 bg-purple-950/80 px-1.5 py-0.5 rounded border border-purple-500/40";
+            if (!userApiKey) {
+                apiKeyModal?.classList.remove('hidden');
+            }
+        });
+
+        // API Key Modal Listeners
+        const apiKeyModal = document.getElementById('apiKeyModal');
+        const inputApiKey = document.getElementById('inputApiKey');
+        const apiKeyStatusMsg = document.getElementById('apiKeyStatusMsg');
+
+        document.getElementById('btnApiKey')?.addEventListener('click', () => {
+            inputApiKey.value = userApiKey;
+            apiKeyStatusMsg.textContent = userApiKey ? '✅ APIキーが登録されています' : '未設定（Geminiモード使用時は設定を推奨）';
+            apiKeyModal?.classList.remove('hidden');
+        });
+
+        document.getElementById('btnCloseApiKey')?.addEventListener('click', () => apiKeyModal?.classList.add('hidden'));
+
+        document.getElementById('btnSaveApiKey')?.addEventListener('click', () => {
+            userApiKey = inputApiKey.value.trim();
+            updateApiKeyUI();
+            apiKeyStatusMsg.textContent = userApiKey ? '✅ APIキーを登録しました！' : 'クリアされました';
+            setTimeout(() => apiKeyModal?.classList.add('hidden'), 600);
+        });
+
+        document.getElementById('btnClearApiKey')?.addEventListener('click', () => {
+            userApiKey = '';
+            inputApiKey.value = '';
+            updateApiKeyUI();
+            apiKeyStatusMsg.textContent = 'クリアされました';
+        });
+
+        // Keyboard Controls
         document.addEventListener('keydown', (e) => {
             if (!gameRunning || isCountingDown || isAiAnalyzing || gameOver) return;
 
             switch (e.key) {
-                case 'ArrowLeft':
-                    e.preventDefault();
-                    moveLeft();
-                    break;
-                case 'ArrowRight':
-                    e.preventDefault();
-                    moveRight();
-                    break;
-                case 'ArrowDown':
-                    e.preventDefault();
-                    playerDrop();
-                    break;
-                case 'ArrowUp':
-                    e.preventDefault();
-                    hardDrop();
-                    break;
-                case 'z':
-                case 'Z':
-                    e.preventDefault();
-                    playerRotate(-1);
-                    break;
-                case 'c':
-                case 'C':
-                    e.preventDefault();
-                    playerRotate(1);
-                    break;
+                case 'ArrowLeft': e.preventDefault(); moveLeft(); break;
+                case 'ArrowRight': e.preventDefault(); moveRight(); break;
+                case 'ArrowDown': e.preventDefault(); playerDrop(); break;
+                case 'ArrowUp': e.preventDefault(); hardDrop(); break;
+                case 'z': case 'Z': e.preventDefault(); playerRotate(-1); break;
+                case 'c': case 'C': e.preventDefault(); playerRotate(1); break;
             }
         });
 
@@ -1007,7 +1206,7 @@ CRITICAL EVALUATION INSTRUCTIONS:
 
         // Start Buttons
         document.getElementById('btnStartGame')?.addEventListener('click', startGame);
-        document.getElementById('btnStartCamera')?.addEventListener('click', initCamera);
+        document.getElementById('btnStartCamera')?.addEventListener('click', initCameraAndHands);
 
         // Sound Toggle
         document.getElementById('btnSound')?.addEventListener('click', () => {
@@ -1015,21 +1214,21 @@ CRITICAL EVALUATION INSTRUCTIONS:
             const icon = document.getElementById('iconSound');
             if (icon) {
                 icon.className = sound.muted
-                    ? "fa-solid fa-volume-xmark text-lg text-slate-500"
-                    : "fa-solid fa-volume-high text-lg text-cyan-400";
+                    ? "fa-solid fa-volume-xmark text-slate-500"
+                    : "fa-solid fa-volume-high text-cyan-400";
             }
         });
 
-        // Instructions Modal Toggle
+        // Help Modal Listeners
         const helpModal = document.getElementById('helpModal');
         document.getElementById('btnHelp')?.addEventListener('click', () => helpModal?.classList.remove('hidden'));
         document.getElementById('btnCloseHelp')?.addEventListener('click', () => helpModal?.classList.add('hidden'));
         document.getElementById('btnModalOk')?.addEventListener('click', () => helpModal?.classList.add('hidden'));
 
-        // Initialize on load
         window.addEventListener('load', () => {
-            initCamera();
+            initCameraAndHands();
             drawBoard();
+            updateApiKeyUI();
         });
     </script>
 </body>
