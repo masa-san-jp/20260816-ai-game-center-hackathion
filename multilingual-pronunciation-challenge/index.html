@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI多言語発音マスター！言語・アクセント判定ゲーム</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti for Game Effect -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans JP', 'sans-serif'],
+                        display: ['Fredoka', 'Noto Sans JP', 'sans-serif'],
+                    },
+                    colors: {
+                        game: {
+                            dark: '#0f172a',
+                            card: '#1e293b',
+                            accent: '#6366f1',
+                            pink: '#ec4899',
+                            yellow: '#f59e0b',
+                            green: '#10b981',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .pulse-ring {
+            animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.22); opacity: 0.15; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+        .glow-effect {
+            box-shadow: 0 0 35px -5px rgba(99, 102, 241, 0.35);
+        }
+        .soramimi-badge {
+            background: linear-gradient(135deg, rgba(236,72,153,0.15), rgba(99,102,241,0.15));
+            border: 1px solid rgba(236,72,153,0.3);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+
+    <!-- Header -->
+    <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid fa-bullhorn text-white text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-display font-bold text-lg sm:text-xl text-white tracking-wide leading-tight">Multilingual Pronunciation Challenge</h1>
+                    <p class="text-[11px] text-slate-400">空耳風日本語お題 × 多言語AIアクセント判定 (英・仏・中・伊)</p>
+                </div>
+            </div>
+
+            <!-- Stats Bar -->
+            <div class="flex items-center space-x-2 sm:space-x-3">
+                <div class="bg-slate-800/90 border border-slate-700/60 px-3 py-1.5 rounded-xl flex items-center space-x-2">
+                    <i class="fa-solid fa-fire text-amber-500 text-sm"></i>
+                    <div class="text-xs">
+                        <span class="text-slate-400 block text-[9px] leading-none">STREAK</span>
+                        <span id="streakCount" class="font-bold text-amber-400 text-sm">0</span>
+                    </div>
+                </div>
+                <div class="bg-slate-800/90 border border-slate-700/60 px-3 py-1.5 rounded-xl flex items-center space-x-2">
+                    <i class="fa-solid fa-trophy text-yellow-400 text-sm"></i>
+                    <div class="text-xs">
+                        <span class="text-slate-400 block text-[9px] leading-none">SCORE</span>
+                        <span id="totalScore" class="font-bold text-yellow-300 text-sm">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-4xl w-full mx-auto px-4 py-6 flex flex-col gap-6">
+
+        <!-- Language Filter Selector Bar -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center space-x-2 text-xs font-bold text-slate-300">
+                <i class="fa-solid fa-dice text-indigo-400 text-sm"></i>
+                <span>お題② ターゲット言語モード:</span>
+            </div>
+            <div id="langFilterGroup" class="flex flex-wrap items-center gap-1.5 text-xs font-semibold">
+                <button data-lang="all" class="lang-filter-btn px-3 py-1.5 rounded-xl bg-indigo-600 text-white shadow-sm transition-all">🎲 ランダム (4言語)</button>
+                <button data-lang="en" class="lang-filter-btn px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all">🇺🇸 英語</button>
+                <button data-lang="fr" class="lang-filter-btn px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all">🇫🇷 フランス語</button>
+                <button data-lang="zh" class="lang-filter-btn px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all">🇨🇳 中国語</button>
+                <button data-lang="it" class="lang-filter-btn px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all">🇮🇹 イタリア語</button>
+            </div>
+        </div>
+
+        <!-- Topic Card -->
+        <section class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden glow-effect">
+            <div class="absolute -top-24 -right-24 w-60 h-60 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-24 -left-24 w-60 h-60 bg-pink-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <!-- Target Language Display (お題②) -->
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-6 relative z-10 border-b border-slate-800/80 pb-4">
+                <div>
+                    <span class="text-[11px] font-bold text-indigo-400 uppercase tracking-widest block mb-1">
+                        <i class="fa-solid fa-bullseye mr-1"></i>お題② 判定対象言語 (英・仏・中・伊から選出)
+                    </span>
+                    <div id="targetLangBadge" class="inline-flex items-center space-x-2 px-4 py-2 rounded-2xl text-base font-extrabold bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-pink-500/20 text-white border border-indigo-500/40 shadow-lg shadow-indigo-500/10">
+                        <span id="langFlag" class="text-2xl">🇺🇸</span>
+                        <span id="langName" class="text-indigo-200">英語 (English Accent)</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <button id="listenNativeBtn" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-indigo-300 hover:text-indigo-200 border border-slate-700 flex items-center space-x-1.5 transition-all">
+                        <i class="fa-solid fa-volume-high text-indigo-400"></i>
+                        <span>お手本発音を聴く</span>
+                    </button>
+                    <button id="nextTopicBtn" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30 flex items-center space-x-1.5 transition-all">
+                        <i class="fa-solid fa-rotate"></i>
+                        <span>次のお題</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Topic Text Display (お題①) -->
+            <div class="text-center my-6 relative z-10">
+                <div class="flex items-center justify-center space-x-2 mb-2">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">お題① 空耳風日本語フレーズ（15文字以下）</span>
+                    <span id="charCountBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-indigo-300 font-mono font-bold">7文字</span>
+                </div>
+                
+                <div class="min-h-[90px] flex flex-col items-center justify-center bg-slate-950/70 p-5 rounded-2xl border border-slate-800/80 shadow-inner">
+                    <h2 id="topicText" class="text-2xl sm:text-3xl font-black text-white leading-snug tracking-wider">
+                        <i class="fa-solid fa-spinner fa-spin text-indigo-400 text-2xl"></i> お題を作成中...
+                    </h2>
+                    <p id="soramimiMeaning" class="text-xs text-pink-400/90 font-medium mt-2 italic">
+                        ---
+                    </p>
+                </div>
+
+                <!-- Phonetic Guidance for Accent Target -->
+                <div class="mt-4">
+                    <div id="accentHintBox" class="text-xs text-indigo-300/90 bg-indigo-950/40 border border-indigo-800/40 inline-block px-4 py-2.5 rounded-xl max-w-xl">
+                        <i class="fa-solid fa-circle-info mr-1.5 text-indigo-400"></i>
+                        <span id="accentHintText">発音ヒント: 標準語ではなくターゲット言語の音韻アクセントで音読してください</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Microphone Input Area -->
+            <div class="mt-8 pt-6 border-t border-slate-800/80 flex flex-col items-center relative z-10">
+                
+                <!-- Audio Visualizer Canvas -->
+                <div class="w-full max-w-md h-16 mb-5 bg-slate-950 rounded-2xl border border-slate-800 flex items-center justify-center overflow-hidden relative shadow-inner">
+                    <canvas id="visualizer" class="w-full h-full"></canvas>
+                    <div id="visualizerPlaceholder" class="text-xs text-slate-500 flex items-center space-x-2">
+                        <i class="fa-solid fa-microphone-lines text-slate-400"></i>
+                        <span>録音を開始するとリアルタイム音声波形が表示されます</span>
+                    </div>
+                </div>
+
+                <!-- Record Button & Visual Ring -->
+                <div class="relative flex items-center justify-center mb-3">
+                    <div id="pulseRing" class="hidden absolute w-28 h-28 rounded-full bg-rose-500/30 pulse-ring"></div>
+                    <button id="recordBtn" disabled class="relative z-10 w-20 h-20 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 active:scale-95 disabled:opacity-50 text-white flex items-center justify-center text-2xl shadow-xl shadow-indigo-500/30 transition-all">
+                        <i id="recordIcon" class="fa-solid fa-microphone"></i>
+                    </button>
+                </div>
+
+                <!-- Status & Timer -->
+                <div id="statusBox" class="text-sm font-medium text-slate-300 flex items-center space-x-2">
+                    <span id="statusDot" class="w-2.5 h-2.5 rounded-full bg-slate-600"></span>
+                    <span id="statusText">録音ボタンを押してお題①を音読</span>
+                </div>
+                <div id="timer" class="text-xs font-mono text-indigo-400 mt-1 hidden">00:00</div>
+            </div>
+        </section>
+
+        <!-- Loading State Card -->
+        <div id="loadingBox" class="hidden bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center animate-pulse">
+            <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-500/10 text-indigo-400 mb-4 border border-indigo-500/20">
+                <i class="fa-solid fa-brain fa-spin text-2xl"></i>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-1">AIが「音声の発音・音韻アクセント」を判定中...</h3>
+            <p class="text-xs text-slate-400">日本語の単語意味ではなく、お題②（ターゲット言語）の発音特性・声調・音素として聴こえるかを分析しています</p>
+        </div>
+
+        <!-- Result Card -->
+        <section id="resultCard" class="hidden bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                <div class="flex items-center space-x-3">
+                    <div id="resultBadgeIcon" class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                    <div>
+                        <h3 id="resultTitle" class="text-lg font-bold text-white">判定完了！</h3>
+                        <p id="resultSubtitle" class="text-xs text-slate-400">AI発音・音韻解析レポート</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span class="text-[10px] text-slate-400 block font-bold tracking-wider">SCORE</span>
+                    <span id="scoreDisplay" class="text-3xl font-black text-indigo-400 font-display">0</span>
+                    <span class="text-xs text-slate-500">/ 100</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Recognized Text & Accent Traits -->
+                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800/80 space-y-3">
+                    <div>
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                            <i class="fa-solid fa-microphone-lines mr-1 text-indigo-400"></i>AIに聴こえた音
+                        </span>
+                        <p id="resOriginalText" class="text-slate-100 font-medium text-base bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                            ---
+                        </p>
+                    </div>
+
+                    <div>
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                            <i class="fa-solid fa-ear-listen mr-1 text-purple-400"></i>検出されたアクセント傾向
+                        </span>
+                        <div id="resAccentTrait" class="inline-block text-xs font-semibold px-3 py-1 rounded-lg bg-purple-500/10 text-purple-300 border border-purple-500/20">
+                            ---
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Feedback & Evaluation -->
+                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800/80 flex flex-col justify-between">
+                    <div>
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                            <i class="fa-solid fa-wand-magic-sparkles mr-1 text-amber-400"></i>発音評定・アドバイス
+                        </span>
+                        <p id="resFeedback" class="text-xs text-slate-300 leading-relaxed bg-slate-900 p-3 rounded-xl border border-slate-800 min-h-[70px]">
+                            ---
+                        </p>
+                    </div>
+                    
+                    <div id="resScoreComment" class="text-xs font-semibold text-indigo-300 mt-3 pt-2 border-t border-slate-800/60 flex items-center space-x-1.5">
+                        <i class="fa-solid fa-comment-dots text-indigo-400"></i>
+                        <span>---</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Next Challenge Action -->
+            <div class="flex justify-end pt-2">
+                <button id="continueGameBtn" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold text-sm shadow-lg shadow-indigo-500/20 flex items-center justify-center space-x-2 transition-all">
+                    <span>次の判定にチャレンジ！</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- History Section -->
+        <section class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center space-x-2">
+                    <i class="fa-solid fa-history text-slate-400"></i>
+                    <span>チャレンジ履歴</span>
+                </h4>
+                <button id="clearHistoryBtn" class="text-[11px] text-slate-500 hover:text-red-400 transition-colors">
+                    履歴クリア
+                </button>
+            </div>
+
+            <div id="historyList" class="space-y-2">
+                <div id="emptyHistory" class="text-center py-6 text-slate-500 text-xs bg-slate-950/40 rounded-xl border border-slate-800/40">
+                    まだ挑戦履歴がありません。お題を読んで発音チェックを開始しましょう！
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-auto border-t border-slate-800/80 bg-slate-950 py-4 text-center text-xs text-slate-500">
+        <p>Powered by Gemini 3 Flash & Web Audio API</p>
+    </footer>
+
+    <script>
+        // --- 15文字以下の空耳（Soramimi）風日本語お題リスト (お題①) ---
+        // 各データには、お題①の日本語テキスト（15文字以下）と、空耳で連想される外国語表現を収録
+        const SORAMIMI_JAPANESE_DATABASE = [
+            { text: "掘った芋いじるな", soramimi: "What time is it now?（英語風）" }, // 8文字
+            { text: "斉藤寝具店", soramimi: "Sightseeing tour（英語風）" }, // 6文字
+            { text: "湯飲み", soramimi: "You know me（英語風）" }, // 3文字
+            { text: "安藤さんお茶", soramimi: "And all the tea（英語風）" }, // 6文字
+            { text: "洗顔フォーム", soramimi: "Thank you all（英語風）" }, // 6文字
+            { text: "農協牛乳", soramimi: "No skill, no news（英語風）" }, // 4文字
+            { text: "パンつくったことある？", soramimi: "Pants squirted court owl?（英語風）" }, // 11文字
+            { text: "阿部寛", soramimi: "A big hero（英語風）" }, // 4文字
+            { text: "揚げ豆腐", soramimi: "I get off（英語風）" }, // 4文字
+            { text: "知らんけど", soramimi: "C'est la vie, kid（フランス語/英語風）" }, // 5文字
+            { text: "あいつはアホだ", soramimi: "I's a hole inside（英語風）" }, // 7文字
+            { text: "冷やし中華始めました", soramimi: "He asking to buy her master（英語風）" }, // 10文字
+            { text: "お風呂入る？", soramimi: "Off to high room?（英語風）" }, // 6文字
+            { text: "履いてますよ", soramimi: "How you taste it?（英語風）" }, // 6文字
+            { text: "ちょっと待ってね", soramimi: "Chao, Amore!（イタリア語風）" }, // 8文字
+            { text: "お茶でも飲もうか", soramimi: "Ocha de m'amuse（フランス語風）" }, // 8文字
+            { text: "富士山が綺麗", soramimi: "Fuji-san est joli（フランス語風）" }, // 6文字
+            { text: "まあいっか", soramimi: "My car（英語風）" }, // 4文字
+            { text: "どこ行くの？", soramimi: "D'accord, cool（フランス語風）" }, // 6文字
+            { text: "靴下履いた？", soramimi: "Qu'est-ce que c'est?（フランス語風）" }, // 6文字
+            { text: "こんにちは良い天気", soramimi: "Comment allez-vous?（フランス語風）" }, // 9文字
+            { text: "ありがとね", soramimi: "Arrivederci（イタリア語風）" }, // 5文字
+            { text: "これ何？", soramimi: "Ni hao!（中国語風）" }, // 4文字
+            { text: "ご飯食べた？", soramimi: "Gohan da tian（中国語風）" }, // 6文字
+            { text: "美味しいラーメン", soramimi: "Oishi la mian（中国語風）" } // 8文字
+        ];
+
+        // お題2で指定される禁止キーワード（お題①のテキストに含まれてはならない単語）
+        const FORBIDDEN_WORDS = [
+            "英語", "English", 
+            "フランス語", "French", "Français", 
+            "中国語", "Chinese", "中文", 
+            "イタリア語", "Italian", "Italiano"
+        ];
+
+        // --- ターゲット言語情報 (お題②: 英語、フランス語、中国語、イタリア語) ---
+        const TARGET_LANGUAGES = {
+            en: {
+                code: 'en',
+                name: '英語 (English Accent)',
+                flag: '🇺🇸',
+                ttsCode: 'en-US',
+                hint: 'R/Lの区別、強く短いストレスアクセント、曖昧母音シュワ（[ə]）を意識して音読してください。'
+            },
+            fr: {
+                code: 'fr',
+                name: 'フランス語 (French Accent)',
+                flag: '🇫🇷',
+                ttsCode: 'fr-FR',
+                hint: '喉の奥を鳴らすR音、鼻濁音、平坦で流れるようなル・リズムとアンシェヌマンを意識してください。'
+            },
+            zh: {
+                code: 'zh',
+                name: '中国語 (Chinese Accent)',
+                flag: '🇨🇳',
+                ttsCode: 'zh-CN',
+                hint: '明確な高低差を持つ四声（トーン）、巻き舌音（zh, ch, sh）、強弱のある発声で音読してください。'
+            },
+            it: {
+                code: 'it',
+                name: 'イタリア語 (Italian Accent)',
+                flag: '🇮🇹',
+                ttsCode: 'it-IT',
+                hint: '舌先を転がす巻き舌のR、開いたハッキリした母音、陽気で軽快なリズムで音読してください。'
+            }
+        };
+
+        // --- STREAMING_CHUNK:Managing application states and DOM bindings ---
+        // Global State Variables
+        let currentTopicObj = null;
+        let currentTargetLang = null;
+        let selectedLangFilter = 'all'; // 'all', 'en', 'fr', 'zh', 'it'
+        let isRecording = false;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let timerInterval = null;
+        let recordingStartTime = 0;
+        
+        let totalScore = 0;
+        let streakCount = 0;
+
+        // Web Audio API Visualizer State
+        let audioCtx = null;
+        let analyser = null;
+        let animFrameId = null;
+
+        // DOM Element References
+        const langFilterBtns = document.querySelectorAll('.lang-filter-btn');
+        const targetLangBadge = document.getElementById('targetLangBadge');
+        const langFlag = document.getElementById('langFlag');
+        const langName = document.getElementById('langName');
+        const charCountBadge = document.getElementById('charCountBadge');
+        const topicText = document.getElementById('topicText');
+        const soramimiMeaning = document.getElementById('soramimiMeaning');
+        const accentHintText = document.getElementById('accentHintText');
+        
+        const listenNativeBtn = document.getElementById('listenNativeBtn');
+        const nextTopicBtn = document.getElementById('nextTopicBtn');
+
+        const recordBtn = document.getElementById('recordBtn');
+        const recordIcon = document.getElementById('recordIcon');
+        const pulseRing = document.getElementById('pulseRing');
+        const statusBox = document.getElementById('statusBox');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const timerEl = document.getElementById('timer');
+
+        const canvas = document.getElementById('visualizer');
+        const canvasCtx = canvas.getContext('2d');
+        const visualizerPlaceholder = document.getElementById('visualizerPlaceholder');
+
+        const loadingBox = document.getElementById('loadingBox');
+        const resultCard = document.getElementById('resultCard');
+        const resultBadgeIcon = document.getElementById('resultBadgeIcon');
+        const resultTitle = document.getElementById('resultTitle');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const resOriginalText = document.getElementById('resOriginalText');
+        const resAccentTrait = document.getElementById('resAccentTrait');
+        const resFeedback = document.getElementById('resFeedback');
+        const resScoreComment = document.getElementById('resScoreComment');
+        const continueGameBtn = document.getElementById('continueGameBtn');
+
+        const streakCountEl = document.getElementById('streakCount');
+        const totalScoreEl = document.getElementById('totalScore');
+        const historyList = document.getElementById('historyList');
+        const emptyHistory = document.getElementById('emptyHistory');
+        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+
+        window.onload = () => {
+            setupCanvasResolution();
+            window.addEventListener('resize', setupCanvasResolution);
+            setupLangFilterEvents();
+            generateNewTopic();
+        };
+
+        function setupCanvasResolution() {
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+        }
+
+        function setupLangFilterEvents() {
+            langFilterBtns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    langFilterBtns.forEach(b => {
+                        b.classList.remove('bg-indigo-600', 'text-white');
+                        b.classList.add('bg-slate-800', 'text-slate-300');
+                    });
+                    const targetBtn = e.currentTarget;
+                    targetBtn.classList.remove('bg-slate-800', 'text-slate-300');
+                    targetBtn.classList.add('bg-indigo-600', 'text-white');
+
+                    selectedLangFilter = targetBtn.getAttribute('data-lang');
+                    generateNewTopic();
+                });
+            });
+        }
+
+        // お題①（15文字以下の空耳日本語・お題2の単語不保持）とお題②（ランダム言語）の生成
+        function generateNewTopic() {
+            // お題②: ターゲット言語の選出
+            const langKeys = ['en', 'fr', 'zh', 'it'];
+            let chosenLangKey = selectedLangFilter;
+            if (selectedLangFilter === 'all') {
+                chosenLangKey = langKeys[Math.floor(Math.random() * langKeys.length)];
+            }
+            currentTargetLang = TARGET_LANGUAGES[chosenLangKey];
+
+            // お題①: 15文字以下 & お題②の単語（FORBIDDEN_WORDS）を含まない空耳日本語をフィルタリング
+            const validTopics = SORAMIMI_JAPANESE_DATABASE.filter(item => {
+                // 15文字以下判定
+                if (item.text.length > 15) return false;
+
+                // お題2に関連する禁止単語が含まれていないかチェック
+                for (const word of FORBIDDEN_WORDS) {
+                    if (item.text.includes(word)) return false;
+                }
+                return true;
+            });
+
+            // フィルタを通過したお題からランダム選出
+            currentTopicObj = validTopics[Math.floor(Math.random() * validTopics.length)];
+
+            // UIへ反映
+            langFlag.innerText = currentTargetLang.flag;
+            langName.innerText = currentTargetLang.name;
+            
+            topicText.innerText = currentTopicObj.text;
+            soramimiMeaning.innerText = `空耳イメージ: ${currentTopicObj.soramimi}`;
+            charCountBadge.innerText = `${currentTopicObj.text.length}文字`;
+            accentHintText.innerText = `発音ヒント: ${currentTargetLang.hint}`;
+
+            recordBtn.disabled = false;
+            statusText.innerText = `「${currentTargetLang.name}」アクセントでお題①を音読`;
+            statusText.className = "text-slate-300 font-medium";
+        }
+
+        // Web Speech API お手本再生
+        listenNativeBtn.addEventListener('click', () => {
+            if (!currentTopicObj || !currentTargetLang) return;
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(currentTopicObj.text);
+            utterance.lang = currentTargetLang.ttsCode;
+            utterance.rate = 0.85;
+            window.speechSynthesis.speak(utterance);
+        });
+
+        nextTopicBtn.addEventListener('click', generateNewTopic);
+        continueGameBtn.addEventListener('click', () => {
+            resultCard.classList.add('hidden');
+            generateNewTopic();
+        });
+
+        recordBtn.addEventListener('click', toggleRecording);
+
+        async function toggleRecording() {
+            if (!isRecording) {
+                await startRecording();
+            } else {
+                stopRecording();
+            }
+        }
+
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioChunks = [];
+
+                mediaRecorder = new MediaRecorder(stream, { mimeType: getSupportedMimeType() });
+
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) audioChunks.push(e.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+                    cleanupAudioVisualizer();
+                    await evaluatePronunciationWithGemini(audioBlob);
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+
+                // UI Status Update
+                recordIcon.className = "fa-solid fa-square text-white";
+                recordBtn.classList.remove('from-indigo-500', 'to-purple-600');
+                recordBtn.classList.add('from-rose-500', 'to-red-600');
+                pulseRing.classList.remove('hidden');
+                statusDot.className = "w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping";
+                statusText.innerText = "録音中... もう一度押して判定へ";
+                statusText.className = "text-rose-400 font-medium";
+
+                startTimer();
+                startAudioVisualizer(stream);
+
+            } catch (err) {
+                console.error("Microphone Access Error:", err);
+                alert("マイクへのアクセス権限が拒否されました。ブラウザの設定をご確認ください。");
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            }
+
+            isRecording = false;
+            stopTimer();
+
+            // Reset Record Button UI
+            recordIcon.className = "fa-solid fa-microphone text-white";
+            recordBtn.classList.remove('from-rose-500', 'to-red-600');
+            recordBtn.classList.add('from-indigo-500', 'to-purple-600');
+            pulseRing.classList.add('hidden');
+            statusDot.className = "w-2.5 h-2.5 rounded-full bg-slate-600";
+            statusText.innerText = "解析準備完了";
+            statusText.className = "text-slate-300 font-medium";
+        }
+
+        function startAudioVisualizer(stream) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            const source = audioCtx.createMediaStreamSource(stream);
+            source.connect(analyser);
+            analyser.fftSize = 64;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            visualizerPlaceholder.classList.add('hidden');
+
+            function draw() {
+                animFrameId = requestAnimationFrame(draw);
+                analyser.getByteFrequencyData(dataArray);
+
+                canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+                const barWidth = (canvas.width / bufferLength) * 2;
+                let x = 0;
+
+                for (let i = 0; i < bufferLength; i++) {
+                    const barHeight = (dataArray[i] / 255) * canvas.height;
+                    const gradient = canvasCtx.createLinearGradient(0, canvas.height, 0, 0);
+                    gradient.addColorStop(0, '#6366f1');
+                    gradient.addColorStop(1, '#ec4899');
+
+                    canvasCtx.fillStyle = gradient;
+                    canvasCtx.fillRect(x, canvas.height - barHeight, barWidth - 2, barHeight);
+                    x += barWidth;
+                }
+            }
+            draw();
+        }
+
+        function cleanupAudioVisualizer() {
+            if (animFrameId) cancelAnimationFrame(animFrameId);
+            if (audioCtx) audioCtx.close();
+            canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+            visualizerPlaceholder.classList.remove('hidden');
+        }
+
+        function startTimer() {
+            recordingStartTime = Date.now();
+            timerEl.classList.remove('hidden');
+            timerEl.innerText = "00:00";
+            timerInterval = setInterval(() => {
+                const elapsedSec = Math.floor((Date.now() - recordingStartTime) / 1000);
+                const mins = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
+                const secs = String(elapsedSec % 60).padStart(2, '0');
+                timerEl.innerText = `${mins}:${secs}`;
+            }, 500);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            timerEl.classList.add('hidden');
+        }
+
+        function getSupportedMimeType() {
+            const types = ['audio/webm', 'audio/mp4', 'audio/ogg', 'audio/wav'];
+            for (let type of types) {
+                if (MediaRecorder.isTypeSupported(type)) return type;
+            }
+            return '';
+        }
+
+        async function blobToBase64(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        async function evaluatePronunciationWithGemini(blob) {
+            loadingBox.classList.remove('hidden');
+            resultCard.classList.add('hidden');
+
+            try {
+                const base64Data = await blobToBase64(blob);
+                const mimeType = blob.type || 'audio/webm';
+
+                const promptText = `
+                あなたはお題文章の発音・アクセント・音韻・イントネーション・声調・外国人風訛りを判定するAI専門審査員です。
+
+                【出題情報】
+                - お題① (15文字以下の空耳日本語フレーズ): "${currentTopicObj.text}"
+                - お題② (判定対象言語): ${currentTargetLang.name}
+
+                【判定基準・最重要ルール】
+                1. ユーザーは上記「お題① (${currentTopicObj.text})」を「お題② (${currentTargetLang.name})」の発音・音韻アクセントで音読・発声しています。
+                2. 言葉の意味ではなく、**音声の【発音・音韻・アクセント・母音の出し方・子音の癖・声調・言語特有の訛り】のみ**を聴き取って評価してください。
+                3. お題②(${currentTargetLang.name})特有の発音特性（例：英語ならR/L音や強弱アクセント、フランス語なら鼻濁音や喉のR、中国語なら四声トーンや巻き舌、イタリア語なら巻き舌Rや明瞭な母音・リズム）が出ているかを判定してください。
+
+                以下のJSONフォーマットのみを返却してください：
+                {
+                    "is_target_language_matched": true または false (お題②の発音・音韻として合格レベルか),
+                    "score": 0から100の数値 (お題②らしさの再現度・発音の完成度),
+                    "recognized_text": "音声から聞き取れたテキスト",
+                    "accent_trait": "検出された発音傾向 (例: 自然な${currentTargetLang.name}アクセント, カタカナ発音, 標準日本語発音 など)",
+                    "detailed_feedback": "具体的な発音音韻ワンポイントアドバイス (日本語で分かりやすく)",
+                    "score_comment": "判定に応じた評価コメント"
+                }
+                `;
+
+                const systemPrompt = "You are an expert multilingual phonetician evaluating voice audio strictly based on target language pronunciation traits and accents. Output pure JSON only.";
+
+                const payload = {
+                    contents: [
+                        {
+                            role: 'user',
+                            parts: [
+                                { text: promptText },
+                                {
+                                    inlineData: {
+                                        mimeType: mimeType,
+                                        data: base64Data
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    generationConfig: {
+                        responseMimeType: "application/json"
+                    },
+                    systemInstruction: {
+                        parts: [{ text: systemPrompt }]
+                    }
+                };
+
+                const apiKey = ""; // Managed by runtime environment
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+
+                const result = await response.json();
+                const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (!jsonText) throw new Error("No response content from Gemini API");
+
+                const evaluationData = JSON.parse(jsonText);
+                renderEvaluationResult(evaluationData);
+                addToHistory(evaluationData);
+
+            } catch (err) {
+                console.error("Gemini Pronunciation Check Error:", err);
+                alert("判定中にエラーが発生しました。録音をやり直してください。");
+            } finally {
+                loadingBox.classList.add('hidden');
+            }
+        }
+
+        function renderEvaluationResult(data) {
+            const isMatched = data.is_target_language_matched;
+            const score = data.score || 0;
+
+            scoreDisplay.innerText = score;
+
+            if (isMatched && score >= 70) {
+                // Success
+                resultBadgeIcon.className = "w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xl";
+                resultBadgeIcon.innerHTML = `<i class="fa-solid fa-circle-check"></i>`;
+                resultTitle.innerText = `${currentTargetLang.flag} ${currentTargetLang.name} の発音判定合格！`;
+                resultTitle.className = "text-lg font-bold text-emerald-400";
+                
+                streakCount++;
+                totalScore += score;
+                
+                // Confetti celebration
+                confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 } });
+            } else {
+                // Try again
+                resultBadgeIcon.className = "w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center text-xl";
+                resultBadgeIcon.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i>`;
+                resultTitle.innerText = `${currentTargetLang.flag} もう一歩！発音・アクセントを意識してみましょう`;
+                resultTitle.className = "text-lg font-bold text-amber-400";
+
+                streakCount = 0;
+                totalScore += Math.floor(score / 2);
+            }
+
+            // Header Stats Update
+            streakCountEl.innerText = streakCount;
+            totalScoreEl.innerText = totalScore;
+
+            // Details Update
+            resOriginalText.innerText = data.recognized_text || "(音声認識不可)";
+            resAccentTrait.innerText = data.accent_trait || "判定不可";
+            resFeedback.innerText = data.detailed_feedback || "アドバイスはありません。";
+            resScoreComment.innerText = data.score_comment || "Good Job!";
+
+            resultCard.classList.remove('hidden');
+            resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        // History Log
+        function addToHistory(data) {
+            emptyHistory.classList.add('hidden');
+
+            const item = document.createElement('div');
+            item.className = "bg-slate-950 p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-3 text-xs";
+
+            const isSuccess = data.is_target_language_matched && data.score >= 70;
+            const scoreColor = isSuccess ? "text-emerald-400 font-bold" : "text-amber-400 font-bold";
+
+            item.innerHTML = `
+                <div class="flex items-center space-x-2.5 overflow-hidden">
+                    <span class="text-xl flex-shrink-0">${currentTargetLang.flag}</span>
+                    <div class="truncate">
+                        <div class="flex items-center space-x-2">
+                            <span class="font-bold text-white">${currentTargetLang.name}</span>
+                            <span class="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-purple-300 font-mono">${data.accent_trait || ''}</span>
+                        </div>
+                        <p class="text-slate-400 truncate text-[11px] mt-0.5">"${currentTopicObj.text}"</p>
+                    </div>
+                </div>
+                <div class="text-right flex-shrink-0">
+                    <span class="${scoreColor}">${data.score}点</span>
+                </div>
+            `;
+
+            historyList.insertBefore(item, historyList.firstChild);
+        }
+
+        clearHistoryBtn.addEventListener('click', () => {
+            historyList.innerHTML = '';
+            historyList.appendChild(emptyHistory);
+            emptyHistory.classList.remove('hidden');
+        });
+    </script>
+</body>
+</html>
