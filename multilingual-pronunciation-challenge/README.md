@@ -4,20 +4,13 @@ AIがあなたの「日本語の空耳発音」を聴き取り、ターゲット
 
 ---
 
-## 📁 ディレクトリ構成・ファイル名提案
-
-プロジェクトの管理およびWebサーバー公開に最適なディレクトリ構成とファイル名の提案です。
+## 📁 ディレクトリ構成・ファイル名
 
 ```text
 multilingual-pronunciation-challenge/
 ├── index.html              # ゲーム本体 (HTML/Tailwind/JavaScript 1ファイル完結)
-├── README.md               # プロジェクトドキュメント（本ファイル）
-└── assets/                 # (オプション) サウンド・ロゴ画像など
+└── README.md               # プロジェクトドキュメント
 ```
-
-### 推薦名称の由来
-- **ディレクトリ名**: `multilingual-pronunciation-challenge` (多言語発音チャレンジ)
-- **メインファイル名**: `index.html` (Webサーバーに配置するだけで即座にアクセス・起動可能な構成)
 
 ---
 
